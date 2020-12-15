@@ -183,6 +183,7 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 	if h.signature != "" {
 		topicNameWithSign += "@" + h.signature
 	}
+	topicNameWithSign = strings.ToLower(topicNameWithSign)
 	sub, e := h.nc.Subscribe(topicNameWithSign, func(msg *nats.Msg) {
 		parmPtr := reflect.New(tparm).Interface()
 		e := h.Byter().DecodeTo(msg.Data, parmPtr, nil)
