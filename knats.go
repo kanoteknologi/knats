@@ -1,7 +1,6 @@
 package knats
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"reflect"
@@ -60,7 +59,7 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 	if model != nil {
 		defHubName = model.HubName()
 	}
-	ctx := kaos.NewContext(context.TODO(), svc, &kaos.ServiceRoute{
+	ctx := kaos.NewContext(svc, &kaos.ServiceRoute{
 		Path:           name,
 		DefaultHubName: defHubName,
 	})
