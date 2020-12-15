@@ -211,13 +211,15 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
 	if o.signature != "" {
-		topic = topic + "@" + o.signature
+		topic += "@" + o.signature
 	}
 
 	bs, err := o.Byter().Encode(data)
 	if err != nil {
 		return err
 	}
+
+	topic = strings.ToLower(topic)
 	if reply == nil {
 		return o.nc.Publish(topic, bs)
 	}
