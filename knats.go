@@ -45,6 +45,28 @@ func NewEventHub(addr string, btr byter.Byter) kaos.EventHub {
 	return h
 }
 
+func (h *Hub) Unsubscribe(name string, svc *kaos.Service, model *kaos.ServiceModel) {
+	var topicName string
+	if strings.HasPrefix(name, svc.BasePoint()) {
+		topicName = strings.ToLower(name)
+	} else if model != nil {
+		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, name))
+	} else {
+		topicName = strings.ToLower(path.Join(svc.BasePoint(), name))
+	}
+
+	subs := []*nats.Subscription{}
+	for _, sub := range h.subs {
+		if sub.Subject == topicName {
+			sub.Unsubscribe()
+			continue
+		}
+
+		subs = append(subs, sub)
+	}
+	h.subs = subs
+}
+
 func (h *Hub) SubscribeEx(name string, svc *kaos.Service, model *kaos.ServiceModel, fn interface{}) error {
 	return h.SubscribeExWithType(name, svc, model, fn, nil)
 }
