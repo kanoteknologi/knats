@@ -179,11 +179,10 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 	}
 
 	//topicName := strings.ToLower(filepath.Join(svc.BasePoint(), model.Name, name))
-	topicNameWithSign := topicName
+	topicNameWithSign := strings.ToLower(topicName)
 	if h.signature != "" {
 		topicNameWithSign += "@" + h.signature
 	}
-	topicNameWithSign = strings.ToLower(topicNameWithSign)
 	sub, e := h.nc.Subscribe(topicNameWithSign, func(msg *nats.Msg) {
 		parmPtr := reflect.New(tparm).Interface()
 		e := h.Byter().DecodeTo(msg.Data, parmPtr, nil)
@@ -210,6 +209,7 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 }
 
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
+	topic = strings.ToLower(topic)
 	if o.signature != "" {
 		topic += "@" + o.signature
 	}
@@ -219,7 +219,6 @@ func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
 		return err
 	}
 
-	topic = strings.ToLower(topic)
 	if reply == nil {
 		return o.nc.Publish(topic, bs)
 	}
