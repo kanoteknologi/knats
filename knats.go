@@ -178,7 +178,14 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 		tparm = tparm.Elem()
 	}
 
-	topicName = strings.ToLower(topicName)
+	if strings.HasPrefix(topicName, svc.BasePoint()) {
+		topicName = strings.ToLower(topicName)
+	} else if model != nil {
+		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, topicName))
+	} else {
+		topicName = strings.ToLower(path.Join(svc.BasePoint(), topicName))
+	}
+
 	topicNameWithSign := topicName
 	if h.signature != "" {
 		topicNameWithSign += "@" + h.signature
