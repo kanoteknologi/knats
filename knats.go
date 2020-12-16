@@ -48,7 +48,7 @@ func NewEventHub(addr string, btr byter.Byter) kaos.EventHub {
 
 func (h *Hub) Unsubscribe(name string, svc *kaos.Service, model *kaos.ServiceModel) {
 	var topicName string
-	if strings.HasPrefix(name, svc.BasePoint()) {
+	if strings.HasPrefix(name, h.prefix) {
 		topicName = strings.ToLower(name)
 	} else if model != nil {
 		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, name))
@@ -105,7 +105,7 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 	}
 
 	var topicName string
-	if strings.HasPrefix(name, svc.BasePoint()) {
+	if strings.HasPrefix(name, h.prefix) {
 		topicName = strings.ToLower(name)
 	} else if model != nil {
 		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, name))
@@ -179,7 +179,7 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 		tparm = tparm.Elem()
 	}
 
-	if strings.HasPrefix(topicName, svc.BasePoint()) {
+	if strings.HasPrefix(topicName, h.prefix) {
 		topicName = strings.ToLower(topicName)
 	} else if model != nil {
 		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, topicName))
