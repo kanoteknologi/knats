@@ -20,6 +20,7 @@ type Hub struct {
 	err       error
 	btr       byter.Byter
 
+	prefix  string
 	nc      *nats.Conn
 	timeout time.Duration
 	subs    []*nats.Subscription
@@ -215,7 +216,20 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 	return nil
 }
 
+func (o *Hub) Prefix() string {
+	return o.prefix
+}
+
+func (o *Hub) SetPrefix(p string) kaos.EventHub {
+	o.prefix = p
+	return o
+}
+
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
+	prefix := o.Prefix()
+	if prefix != "" {
+		topic = path.Join(prefix, topic)
+	}
 	topic = strings.ToLower(topic)
 	if o.signature != "" {
 		topic += "@" + o.signature
