@@ -165,7 +165,7 @@ func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.Service
 		return h.err
 	}
 
-	ctx := new(kaos.Context)
+	ctx := kaos.NewContext(svc, nil)
 	vfn := reflect.ValueOf(fn)
 	if vfn.Kind() != reflect.Func {
 		return fmt.Errorf("fn should be a function")
