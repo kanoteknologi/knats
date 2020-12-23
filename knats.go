@@ -226,9 +226,13 @@ func (o *Hub) SetPrefix(p string) kaos.EventHub {
 }
 
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
-	prefix := o.Prefix()
-	if prefix != "" {
-		topic = path.Join(prefix, topic)
+	usePrefix := topic[0] == '@'
+	if usePrefix {
+		topic = topic[1:]
+		prefix := o.Prefix()
+		if prefix != "" && !strings.HasPrefix(topic, prefix) {
+			topic = path.Join(prefix, topic)
+		}
 	}
 	topic = strings.ToLower(topic)
 	if o.signature != "" {
