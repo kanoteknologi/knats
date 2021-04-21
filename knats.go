@@ -122,12 +122,14 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 		parmPtr := reflect.New(tparm).Interface()
 		e := h.Byter().DecodeTo(msg.Data, parmPtr, nil)
 		if e != nil {
-			//ctx.Log().Error(e.Error() + " | " + string(debug.Stack()))
+			ctx.Log().Error(e.Error() + " | " + tparm.Name() + " | " + string(debug.Stack()))
 			m = EventResponse{Error: e.Error() + " | " + string(debug.Stack())}
 			bs, _ := h.Byter().Encode(m)
 			msg.Respond(bs)
+			return
 		}
 
+		//fmt.Printf("resp data: %s", toolkit.JsonString(parmPtr))
 		var vparm reflect.Value
 		if parmIsPtr {
 			vparm = reflect.ValueOf(parmPtr)
@@ -150,7 +152,7 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 			msg.Respond(bs)
 		}
 	}); e != nil {
-		return fmt.Errorf("Fail to activate %s: %s", topicName, e.Error())
+		return fmt.Errorf("fail to activate %s: %s", topicName, e.Error())
 	} else {
 		h.subs = append(h.subs, sub)
 	}
@@ -234,6 +236,7 @@ func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
 			topic = path.Join(prefix, topic)
 		}
 	}
+
 	topic = strings.ToLower(topic)
 	if o.signature != "" {
 		topic += "@" + o.signature
