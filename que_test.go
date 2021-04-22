@@ -102,12 +102,12 @@ func TestQueModel(t *testing.T) {
 		cv.Convey("Save using Event", func() {
 			user1 := new(QueUserModel)
 			user1.ID = "user-01"
-			user1.Name = "Nama User 01"
+			user1.Name = "Nama User 01 with Random " + toolkit.RandomString(10)
 			user1.Timestamp = time.Now()
 			res1 := new(QueUserModel)
-			//ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
-			//defer ev2.Close()
-			e = ev.Publish("/event/v1/user/save", user1, res1)
+			ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
+			defer ev2.Close()
+			e = ev2.Publish("/event/v1/user/save", user1, res1)
 			cv.So(e, cv.ShouldBeNil)
 			cv.So(user1.Name, cv.ShouldEqual, res1.Name)
 
