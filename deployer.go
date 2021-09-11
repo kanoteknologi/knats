@@ -61,7 +61,7 @@ func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj
 		} else if (inCount == 2 && fnType.In(0).String() == "*kaos.Context" && outCount == 2 && fnType.Out(1).String() == "error") ||
 			(inCount == 3 && fnType.In(1).String() == "*kaos.Context" && outCount == 2 && fnType.Out(1).String() == "error") {
 			// subscribe
-			if e := ev.SubscribeExWithType(sr.Path, svc, nil, fn.Interface(), sr.RequestType); e != nil {
+			if e := ev.SubscribeExWithType(sr.Path, nil, fn.Interface(), sr.RequestType); e != nil {
 				return fmt.Errorf("fail to subscribeEx %s. %s", sr.Path, e.Error())
 			}
 		}

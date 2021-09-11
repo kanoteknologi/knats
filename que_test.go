@@ -148,7 +148,7 @@ type Model2 struct {
 }
 
 func (m *Model2) OnSetDo(ev kaos.EventHub, svc *kaos.Service) error {
-	return ev.Subscribe("/event/v1/model1/onset", svc, nil,
+	return ev.Subscribe("/event/v1/model1/onset", nil,
 		func(ctx *kaos.Context, parm string) (string, error) {
 			//ctx.Log().Infof("setting-up data: %s", parm)
 			m.msg = parm

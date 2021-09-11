@@ -1,6 +1,7 @@
 package knats
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"reflect"
@@ -24,6 +25,8 @@ type Hub struct {
 	nc      *nats.Conn
 	timeout time.Duration
 	subs    []*nats.Subscription
+
+	service *kaos.Service
 }
 
 // EventResponse knats will use this for default event response for Kaos,
@@ -46,14 +49,22 @@ func NewEventHub(addr string, btr byter.Byter) kaos.EventHub {
 	return h
 }
 
-func (h *Hub) Unsubscribe(name string, svc *kaos.Service, model *kaos.ServiceModel) {
+func (h *Hub) Service() *kaos.Service {
+	return h.service
+}
+
+func (h *Hub) SetService(s *kaos.Service) {
+	h.service = s
+}
+
+func (h *Hub) Unsubscribe(name string, model *kaos.ServiceModel) {
 	var topicName string
 	if strings.HasPrefix(name, h.prefix) {
 		topicName = strings.ToLower(name)
 	} else if model != nil {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, name))
+		topicName = strings.ToLower(path.Join(h.Prefix(), model.Name, name))
 	} else {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), name))
+		topicName = strings.ToLower(path.Join(h.Prefix(), name))
 	}
 
 	subs := []*nats.Subscription{}
@@ -68,13 +79,17 @@ func (h *Hub) Unsubscribe(name string, svc *kaos.Service, model *kaos.ServiceMod
 	h.subs = subs
 }
 
-func (h *Hub) SubscribeEx(name string, svc *kaos.Service, model *kaos.ServiceModel, fn interface{}) error {
-	return h.SubscribeExWithType(name, svc, model, fn, nil)
+func (h *Hub) SubscribeEx(name string, model *kaos.ServiceModel, fn interface{}) error {
+	return h.SubscribeExWithType(name, model, fn, nil)
 }
 
-func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.ServiceModel, fn interface{}, reqType reflect.Type) error {
+func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn interface{}, reqType reflect.Type) error {
 	if h.err != nil {
 		return h.err
+	}
+
+	if h.Service() == nil {
+		return errors.New("service is nil")
 	}
 
 	// ctx := new(kaos.Context)
@@ -82,10 +97,12 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 	if model != nil {
 		defHubName = model.HubName()
 	}
-	ctx := kaos.NewContext(svc, &kaos.ServiceRoute{
+
+	ctx := kaos.NewContext(h.Service(), &kaos.ServiceRoute{
 		Path:           name,
 		DefaultHubName: defHubName,
 	})
+
 	vfn := reflect.ValueOf(fn)
 	if vfn.Kind() != reflect.Func {
 		return fmt.Errorf("fn should be a function")
@@ -108,9 +125,9 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 	if strings.HasPrefix(name, h.prefix) {
 		topicName = strings.ToLower(name)
 	} else if model != nil {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, name))
+		topicName = strings.ToLower(path.Join(h.Prefix(), model.Name, name))
 	} else {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), name))
+		topicName = strings.ToLower(path.Join(h.Prefix(), name))
 	}
 
 	topicNameWithSign := topicName
@@ -158,15 +175,16 @@ func (h *Hub) SubscribeExWithType(name string, svc *kaos.Service, model *kaos.Se
 	}
 
 	h.nc.Flush()
-	svc.Log().Infof("Event %s is activated [Exclusive]", topicName)
+	ctx.Log().Infof("Event %s is activated [Exclusive]", topicName)
 	return nil
 }
 
-func (h *Hub) Subscribe(topicName string, svc *kaos.Service, model *kaos.ServiceModel, fn interface{}) error {
+func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface{}) error {
 	if h.err != nil {
 		return h.err
 	}
 
+	svc := h.Service()
 	ctx := kaos.NewContext(svc, nil)
 	vfn := reflect.ValueOf(fn)
 	if vfn.Kind() != reflect.Func {
@@ -228,6 +246,10 @@ func (o *Hub) SetPrefix(p string) kaos.EventHub {
 }
 
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
+	return o.PublishWithTimeout(topic, data, reply, o.Timeout())
+}
+
+func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface{}, to time.Duration) error {
 	usePrefix := topic[0] == '@'
 	if usePrefix {
 		topic = topic[1:]
@@ -251,9 +273,13 @@ func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
 		return o.nc.Publish(topic, bs)
 	}
 
-	msg, e := o.nc.Request(topic, bs, o.Timeout())
+	if int(to) == 0 {
+		to = o.Timeout()
+	}
+
+	msg, e := o.nc.Request(topic, bs, to)
 	if e != nil {
-		return e
+		return errors.New("nats receive error: " + e.Error() + ", topic: " + strings.Split(topic, "@")[0])
 	}
 
 	m := new(EventResponse)
