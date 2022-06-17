@@ -9,20 +9,21 @@ import (
 	"git.kanosolution.net/kano/dbflex"
 	"git.kanosolution.net/kano/dbflex/orm"
 	"git.kanosolution.net/kano/kaos"
-	"git.kanosolution.net/kano/kext/mod/kmdb"
 	"github.com/ariefdarmawan/byter"
 	"github.com/ariefdarmawan/datahub"
 	_ "github.com/ariefdarmawan/flexmgo"
-	"github.com/eaciit/toolkit"
 	"github.com/kanoteknologi/hd"
 	"github.com/kanoteknologi/khc"
 	"github.com/kanoteknologi/knats"
+	"github.com/sebarcode/codekit"
+	"github.com/sebarcode/dbmod"
+	"github.com/sebarcode/logger"
 	cv "github.com/smartystreets/goconvey/convey"
 )
 
 var (
 	qConnStr      = "mongodb://localhost:27017/testdb"
-	qlog          *toolkit.LogEngine
+	qlog          *logger.LogEngine
 	eventSecretID = "any-secret-value"
 	addrPub1      = "localhost:4901"
 	addrPub2      = "localhost:4902"
@@ -87,7 +88,7 @@ func TestQueModel(t *testing.T) {
 		sp := kaos.NewService().SetBasePoint("/event/v1").
 			RegisterEventHub(ev, "default", eventSecretID).
 			RegisterDataHub(aclHub, "default")
-		sp.RegisterModel(new(QueUserModel), "user").SetMod(kmdb.New()).SetDeployer(knats.DeployerName, hd.DeployerName)
+		sp.RegisterModel(new(QueUserModel), "user").SetMod(dbmod.New()).SetDeployer(knats.DeployerName, hd.DeployerName)
 		//e := sp.ActivateEvent()
 		//cv.So(e, cv.ShouldBeNil)
 
@@ -102,7 +103,7 @@ func TestQueModel(t *testing.T) {
 		cv.Convey("Save using Event", func() {
 			user1 := new(QueUserModel)
 			user1.ID = "user-01"
-			user1.Name = "Nama User 01 with Random " + toolkit.RandomString(10)
+			user1.Name = "Nama User 01 with Random " + codekit.RandomString(10)
 			user1.Timestamp = time.Now()
 			res1 := new(QueUserModel)
 			ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
@@ -204,7 +205,7 @@ func makeQHub(txt string) *datahub.Hub {
 			return nil, fmt.Errorf("fail to connect. %s", err.Error())
 		}
 		conn.SetKeyNameTag("key")
-		conn.SetFieldNameTag(toolkit.TagName())
+		conn.SetFieldNameTag(codekit.TagName())
 		return conn, nil
 	}, true, 10)
 	return h

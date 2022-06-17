@@ -146,7 +146,7 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 			return
 		}
 
-		//fmt.Printf("resp data: %s", toolkit.JsonString(parmPtr))
+		//fmt.Printf("resp data: %s", codekit.JsonString(parmPtr))
 		var vparm reflect.Value
 		if parmIsPtr {
 			vparm = reflect.ValueOf(parmPtr)

@@ -115,7 +115,7 @@ func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj
 			tmp = tmpv.Elem().Interface()
 			//tmpType = tmpv.Elem().Type()
 		}
-		//fmt.Printf("\nBefore tmp: %T %s\n", tmp, toolkit.JsonString(tmp))
+		//fmt.Printf("\nBefore tmp: %T %s\n", tmp, codekit.JsonString(tmp))
 
 		// get request
 		var err error
@@ -140,7 +140,7 @@ func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj
 			w.Write([]byte(runErrTxt))
 			return
 		}
-		//fmt.Printf("\nAfter tmp: %T %s\n", tmp, toolkit.JsonString(tmp))
+		//fmt.Printf("\nAfter tmp: %T %s\n", tmp, codekit.JsonString(tmp))
 
 		// run the function
 		var res interface{}
