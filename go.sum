@@ -348,8 +348,9 @@ github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8
 github.com/kanoteknologi/hd v0.0.0-20201106035827-cfd81094970e/go.mod h1:k3peJVyes0/PJLo0Oi7+v+iKCq5+3UhNBTidA21jDxo=
 github.com/kanoteknologi/hd v0.1.0 h1:QcbF9GTXiNrSMH62BSjrr5gG7I3dN/tgRrYYOOJrbDk=
 github.com/kanoteknologi/hd v0.1.0/go.mod h1:zP7OJYO6P95fI0MH6IuZn5D8INGNodm4XIqmNyObD4g=
-github.com/kanoteknologi/khc v0.0.0-20201106040214-bfaf5bb62d14 h1:O3pjtSg8lV3FqZyVsopZEJL3/ijWZTpPrYPS0imWDrE=
 github.com/kanoteknologi/khc v0.0.0-20201106040214-bfaf5bb62d14/go.mod h1:3mLuTdVm0OUHN3Jt9PUCW79DkBRf21VATLAbQYpgtG4=
+github.com/kanoteknologi/khc v0.0.1 h1:9X5yJF+Z2kFx8D96sg1JfKQM06jbgxkvfdstVKgpWas=
+github.com/kanoteknologi/khc v0.0.1/go.mod h1:XaDPGsVpSc7wzT8zN7QrsjpQpaYiOxSZrycAqZ6DNok=
 github.com/karrick/godirwalk v1.8.0/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsaRPx4tDPEn4=
 github.com/karrick/godirwalk v1.10.3/go.mod h1:RoGL9dQei4vP9ilrpETWE8CLOZ1kiN0LhBygSwrAsHA=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=

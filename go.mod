@@ -9,7 +9,7 @@ require (
 	github.com/ariefdarmawan/datahub v0.2.2
 	github.com/ariefdarmawan/flexmgo v0.3.0
 	github.com/kanoteknologi/hd v0.1.0
-	github.com/kanoteknologi/khc v0.0.0-20201106040214-bfaf5bb62d14
+	github.com/kanoteknologi/khc v0.0.1
 	github.com/nats-io/nats.go v1.16.0
 	github.com/sebarcode/codekit v0.1.2
 	github.com/sebarcode/dbmod v0.0.3
