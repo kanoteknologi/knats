@@ -98,7 +98,7 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 		defHubName = model.HubName()
 	}
 
-	ctx := kaos.NewContext(h.Service(), &kaos.ServiceRoute{
+	ctx := kaos.NewContextFromService(h.Service(), &kaos.ServiceRoute{
 		Path:           name,
 		DefaultHubName: defHubName,
 	})
@@ -185,7 +185,7 @@ func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface
 	}
 
 	svc := h.Service()
-	ctx := kaos.NewContext(svc, nil)
+	ctx := kaos.NewContextFromService(svc, nil)
 	vfn := reflect.ValueOf(fn)
 	if vfn.Kind() != reflect.Func {
 		return fmt.Errorf("fn should be a function")
