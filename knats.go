@@ -60,11 +60,11 @@ func (h *Hub) SetService(s *kaos.Service) {
 func (h *Hub) Unsubscribe(name string, model *kaos.ServiceModel) {
 	var topicName string
 	if strings.HasPrefix(name, h.prefix) {
-		topicName = strings.ToLower(name)
+		topicName = name
 	} else if model != nil {
-		topicName = strings.ToLower(path.Join(h.Prefix(), model.Name, name))
+		topicName = path.Join(h.Prefix(), model.Name, name)
 	} else {
-		topicName = strings.ToLower(path.Join(h.Prefix(), name))
+		topicName = path.Join(h.Prefix(), name)
 	}
 
 	subs := []*nats.Subscription{}
@@ -123,11 +123,11 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 
 	var topicName string
 	if strings.HasPrefix(name, h.prefix) {
-		topicName = strings.ToLower(name)
+		topicName = name
 	} else if model != nil {
-		topicName = strings.ToLower(path.Join(h.Prefix(), model.Name, name))
+		topicName = path.Join(h.Prefix(), model.Name, name)
 	} else {
-		topicName = strings.ToLower(path.Join(h.Prefix(), name))
+		topicName = path.Join(h.Prefix(), name)
 	}
 
 	topicNameWithSign := topicName
@@ -200,11 +200,11 @@ func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface
 	}
 
 	if strings.HasPrefix(topicName, h.prefix) {
-		topicName = strings.ToLower(topicName)
+		//topicName = strings.ToLower(topicName)
 	} else if model != nil {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), model.Name, topicName))
+		topicName = path.Join(svc.BasePoint(), model.Name, topicName)
 	} else {
-		topicName = strings.ToLower(path.Join(svc.BasePoint(), topicName))
+		topicName = path.Join(svc.BasePoint(), topicName)
 	}
 
 	topicNameWithSign := topicName
@@ -259,7 +259,7 @@ func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface
 		}
 	}
 
-	topic = strings.ToLower(topic)
+	//topic = strings.ToLower(topic)
 	if o.signature != "" {
 		topic += "@" + o.signature
 	}
