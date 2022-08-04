@@ -121,14 +121,14 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 		tparm = tparm.Elem()
 	}
 
-	var topicName string
-	if name[0] == '@' {
+	topicName := name
+	if topicName[0] == '@' {
 		topicName = name[1:]
-	} else if !strings.HasPrefix(name, h.Prefix()) {
+	} else if !strings.HasPrefix(topicName, h.Prefix()) {
 		if model != nil {
-			topicName = path.Join(h.Prefix(), model.Name, name)
+			topicName = path.Join(h.Prefix(), model.Name, topicName)
 		} else {
-			topicName = path.Join(h.Prefix(), name)
+			topicName = path.Join(h.Prefix(), topicName)
 		}
 	}
 
