@@ -124,10 +124,12 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 	var topicName string
 	if name[0] == '@' {
 		topicName = name[1:]
-	} else if model != nil {
-		topicName = path.Join(h.Prefix(), model.Name, name)
-	} else {
-		topicName = path.Join(h.Prefix(), name)
+	} else if !strings.HasPrefix(name, h.Prefix()) {
+		if model != nil {
+			topicName = path.Join(h.Prefix(), model.Name, name)
+		} else {
+			topicName = path.Join(h.Prefix(), name)
+		}
 	}
 
 	topicNameWithSign := topicName
@@ -201,10 +203,12 @@ func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface
 
 	if topicName[0] == '@' {
 		topicName = topicName[1:]
-	} else if model != nil {
-		topicName = path.Join(svc.BasePoint(), model.Name, topicName)
-	} else {
-		topicName = path.Join(svc.BasePoint(), topicName)
+	} else if !strings.HasPrefix(topicName, h.Prefix()) {
+		if model != nil {
+			topicName = path.Join(svc.BasePoint(), model.Name, topicName)
+		} else {
+			topicName = path.Join(svc.BasePoint(), topicName)
+		}
 	}
 
 	topicNameWithSign := topicName
