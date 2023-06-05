@@ -12,6 +12,7 @@ import (
 	"git.kanosolution.net/kano/kaos"
 	"github.com/ariefdarmawan/byter"
 	"github.com/nats-io/nats.go"
+	"github.com/sebarcode/codekit"
 )
 
 type Hub struct {
@@ -27,6 +28,11 @@ type Hub struct {
 	subs    []*nats.Subscription
 
 	service *kaos.Service
+}
+
+type EventRequest struct {
+	Headers codekit.M
+	Payload []byte
 }
 
 // EventResponse knats will use this for default event response for Kaos,
@@ -109,15 +115,15 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 	}
 	tfn := vfn.Type()
 
-	parmIsPtr := false
 	var tparm reflect.Type
+	tParmIsPtr := false
 	if reqType != nil {
 		tparm = reqType
 	} else {
 		tparm = tfn.In(1)
 	}
 	if tparm.String()[0] == '*' {
-		parmIsPtr = true
+		tParmIsPtr = true
 		tparm = tparm.Elem()
 	}
 
@@ -136,11 +142,28 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 	if h.signature != "" {
 		topicNameWithSign += "@" + h.signature
 	}
+
+	svc := h.Service()
+	sr := svc.GetRoute(topicName)
+	if sr == nil {
+		return fmt.Errorf("invalid route %s", topicName)
+	}
+
 	if sub, e := h.nc.QueueSubscribe(topicNameWithSign, h.Secret(), func(msg *nats.Msg) {
+		var e error
 		var m EventResponse
+		var req EventRequest
+
+		//-- decode msg to request
+		if e = h.Byter().DecodeTo(msg.Data, &req, nil); e != nil {
+			m = EventResponse{Error: e.Error()}
+			bs, _ := h.Byter().Encode(m)
+			msg.Respond(bs)
+			return
+		}
+
 		parmPtr := reflect.New(tparm).Interface()
-		e := h.Byter().DecodeTo(msg.Data, parmPtr, nil)
-		if e != nil {
+		if e = h.Byter().DecodeTo(req.Payload, parmPtr, nil); e != nil {
 			ctx.Log().Error(e.Error() + " | " + tparm.Name() + " | " + string(debug.Stack()))
 			m = EventResponse{Error: e.Error() + " | " + string(debug.Stack())}
 			bs, _ := h.Byter().Encode(m)
@@ -148,21 +171,29 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 			return
 		}
 
-		//fmt.Printf("resp data: %s", codekit.JsonString(parmPtr))
-		var vparm reflect.Value
-		if parmIsPtr {
-			vparm = reflect.ValueOf(parmPtr)
-		} else {
-			vparm = reflect.ValueOf(parmPtr).Elem()
+		kaosCtx := kaos.NewContextFromService(svc, sr)
+		if req.Headers != nil {
+			for k, v := range req.Headers {
+				kaosCtx.Data().Set(k, v)
+			}
 		}
-		o := vfn.Call([]reflect.Value{reflect.ValueOf(ctx), vparm})
 
-		m = EventResponse{
-			Data: o[0].Interface(),
+		// get parm to be passed to function
+		var parm any
+		if tParmIsPtr {
+			parm = parmPtr
+		} else {
+			parm = reflect.ValueOf(parmPtr).Elem().Interface()
 		}
-		if e, ok := o[1].Interface().(error); ok && e != nil {
-			m.Error = e.Error()
+
+		m = EventResponse{}
+		res, err := sr.Run(kaosCtx, svc, parm)
+		if err != nil {
+			m.Error = err.Error()
+		} else {
+			m.Data = res
 		}
+
 		bs, e := h.Byter().Encode(m)
 		if e != nil {
 			ctx.Log().Error(e.Error())
@@ -250,10 +281,22 @@ func (o *Hub) SetPrefix(p string) kaos.EventHub {
 }
 
 func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
-	return o.PublishWithTimeout(topic, data, reply, o.Timeout())
+	return o.PublishWithHeadersAndTimeout(topic, data, nil, reply, o.Timeout())
 }
 
-func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface{}, to time.Duration) error {
+func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface{}, timeout time.Duration) error {
+	return o.PublishWithHeadersAndTimeout(topic, data, nil, reply, timeout)
+}
+
+func (o *Hub) PublishWithHeaders(topic string, data interface{}, headers codekit.M, reply interface{}) error {
+	return o.PublishWithHeadersAndTimeout(topic, data, headers, reply, o.Timeout())
+}
+
+func (o *Hub) PublishWithHeadersAndTimeout(topic string, data interface{}, headers codekit.M, reply interface{}, to time.Duration) error {
+	if headers == nil {
+		headers = codekit.M{}
+	}
+
 	usePrefix := topic[0] == '@'
 	if usePrefix {
 		topic = topic[1:]
@@ -281,7 +324,17 @@ func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface
 		to = o.Timeout()
 	}
 
-	msg, e := o.nc.Request(topic, bs, to)
+	msgReq := EventRequest{
+		Headers: headers,
+		Payload: bs,
+	}
+
+	bsReq, err := o.Byter().Encode(msgReq)
+	if err != nil {
+		return err
+	}
+
+	msg, e := o.nc.Request(topic, bsReq, to)
 	if e != nil {
 		return errors.New("nats receive error: " + e.Error() + ", topic: " + strings.Split(topic, "@")[0])
 	}

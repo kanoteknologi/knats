@@ -1,6 +1,7 @@
 package knats_test
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -17,13 +18,11 @@ import (
 	"github.com/kanoteknologi/knats"
 	"github.com/sebarcode/codekit"
 	"github.com/sebarcode/dbmod"
-	"github.com/sebarcode/logger"
 	cv "github.com/smartystreets/goconvey/convey"
 )
 
 var (
 	qConnStr      = "mongodb://localhost:27017/testdb"
-	qlog          *logger.LogEngine
 	eventSecretID = "any-secret-value"
 	addrPub1      = "localhost:4901"
 	addrPub2      = "localhost:4902"
@@ -38,7 +37,7 @@ func TestQueBasic(t *testing.T) {
 		sp.RegisterModel(new(Model1), "model1").SetDeployer(knats.DeployerName, hd.DeployerName)
 
 		mux := http.NewServeMux()
-		e := hd.NewHttpDeployer().Deploy(sp, mux)
+		e := hd.NewHttpDeployer(nil).Deploy(sp, mux)
 		cv.So(e, cv.ShouldBeNil)
 		go http.ListenAndServe(addrPub1, mux)
 
@@ -89,11 +88,17 @@ func TestQueModel(t *testing.T) {
 			RegisterEventHub(ev, "default", eventSecretID).
 			RegisterDataHub(aclHub, "default")
 		sp.RegisterModel(new(QueUserModel), "user").SetMod(dbmod.New()).SetDeployer(knats.DeployerName, hd.DeployerName)
-		//e := sp.ActivateEvent()
-		//cv.So(e, cv.ShouldBeNil)
+		sp.RegisterModel(new(QueUserModel), "user-restrict").SetMod(dbmod.New()).SetDeployer(knats.DeployerName).
+			RegisterMW(func(ctx *kaos.Context, i interface{}) (bool, error) {
+				headerJWT := ctx.Data().Get("jwt_token", "").(string)
+				if headerJWT == "" {
+					return false, errors.New("invalid token")
+				}
+				return true, nil
+			}, "checkHeader")
 
 		mux := http.NewServeMux()
-		e := hd.NewHttpDeployer().Deploy(sp, mux)
+		e := hd.NewHttpDeployer(nil).Deploy(sp, mux)
 		cv.So(e, cv.ShouldBeNil)
 		go http.ListenAndServe(addrPub2, mux)
 
@@ -122,6 +127,22 @@ func TestQueModel(t *testing.T) {
 				cv.Convey("Get using Event", func() {
 					res3 := new(QueUserModel)
 					e = ev.Publish("/event/v1/user/get", []interface{}{user1.ID}, res3)
+					cv.So(e, cv.ShouldBeNil)
+					cv.So(res2, cv.ShouldResemble, res3)
+				})
+
+				cv.Convey("Get using Event with headers - no headers", func() {
+					res3 := new(QueUserModel)
+					e = ev.Publish("/event/v1/user-restrict/get", []interface{}{user1.ID}, res3)
+					cv.So(e, cv.ShouldNotBeNil)
+				})
+
+				cv.Convey("Get using Event with headers - with headers", func() {
+					res3 := new(QueUserModel)
+					e = ev.PublishWithHeaders("/event/v1/user-restrict/get",
+						[]interface{}{user1.ID},
+						codekit.M{"jwt_token": "random saja"},
+						res3)
 					cv.So(e, cv.ShouldBeNil)
 					cv.So(res2, cv.ShouldResemble, res3)
 				})
@@ -201,6 +222,7 @@ func makeQHub(txt string) *datahub.Hub {
 		if err != nil {
 			return nil, err
 		}
+		conn.DisableTx(true)
 		if err = conn.Connect(); err != nil {
 			return nil, fmt.Errorf("fail to connect. %s", err.Error())
 		}
