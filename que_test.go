@@ -54,7 +54,7 @@ func TestQueBasic(t *testing.T) {
 
 			cv.Convey("Validate init", func() {
 				res := ""
-				e = ev.Publish("/event/v1/model2/sayhello", "a", &res)
+				e = ev.Publish("/event/v1/model2/sayhello", "a", &res, nil)
 				cv.So(e, cv.ShouldBeNil)
 				cv.So(res, cv.ShouldEqual, "OK")
 
@@ -67,7 +67,7 @@ func TestQueBasic(t *testing.T) {
 
 					cv.Convey("Validate after set", func() {
 						res := ""
-						e = ev.Publish("/event/v1/model2/sayhello", "b", &res)
+						e = ev.Publish("/event/v1/model2/sayhello", "b", &res, nil)
 						cv.So(e, cv.ShouldBeNil)
 						cv.So(res, cv.ShouldEqual, newmsg)
 					})
@@ -113,7 +113,7 @@ func TestQueModel(t *testing.T) {
 			res1 := new(QueUserModel)
 			ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
 			defer ev2.Close()
-			e = ev2.Publish("/event/v1/user/save", user1, res1)
+			e = ev2.Publish("/event/v1/user/save", user1, res1, nil)
 			cv.So(e, cv.ShouldBeNil)
 			cv.So(user1.Name, cv.ShouldEqual, res1.Name)
 
@@ -126,23 +126,22 @@ func TestQueModel(t *testing.T) {
 
 				cv.Convey("Get using Event", func() {
 					res3 := new(QueUserModel)
-					e = ev.Publish("/event/v1/user/get", []interface{}{user1.ID}, res3)
+					e = ev.Publish("/event/v1/user/get", []interface{}{user1.ID}, res3, nil)
 					cv.So(e, cv.ShouldBeNil)
 					cv.So(res2, cv.ShouldResemble, res3)
 				})
 
 				cv.Convey("Get using Event with headers - no headers", func() {
 					res3 := new(QueUserModel)
-					e = ev.Publish("/event/v1/user-restrict/get", []interface{}{user1.ID}, res3)
+					e = ev.Publish("/event/v1/user-restrict/get", []interface{}{user1.ID}, res3, nil)
 					cv.So(e, cv.ShouldNotBeNil)
 				})
 
 				cv.Convey("Get using Event with headers - with headers", func() {
 					res3 := new(QueUserModel)
-					e = ev.PublishWithHeaders("/event/v1/user-restrict/get",
+					e = ev.Publish("/event/v1/user-restrict/get",
 						[]interface{}{user1.ID},
-						codekit.M{"jwt_token": "random saja"},
-						res3)
+						res3, &kaos.PublishOpts{Headers: codekit.M{"jwt_token": "random saja"}})
 					cv.So(e, cv.ShouldBeNil)
 					cv.So(res2, cv.ShouldResemble, res3)
 				})
@@ -159,7 +158,7 @@ func (m *Model1) Set(c *kaos.Context, parm string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	if e = ev.Publish("/event/v1/model1/onset", parm, nil); e != nil {
+	if e = ev.Publish("/event/v1/model1/onset", parm, nil, nil); e != nil {
 		return "", e
 	}
 	return parm, nil

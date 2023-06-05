@@ -280,19 +280,23 @@ func (o *Hub) SetPrefix(p string) kaos.EventHub {
 	return o
 }
 
-func (o *Hub) Publish(topic string, data interface{}, reply interface{}) error {
-	return o.PublishWithHeadersAndTimeout(topic, data, nil, reply, o.Timeout())
+func (o *Hub) Publish(topic string, data interface{}, reply interface{}, opts *kaos.PublishOpts) error {
+	if opts == nil {
+		opts = &kaos.PublishOpts{
+			Headers: codekit.M{},
+			Timeout: o.timeout,
+		}
+	}
+	if opts.Headers == nil {
+		opts.Headers = codekit.M{}
+	}
+	if int(opts.Timeout) == 0 {
+		opts.Timeout = o.Timeout()
+	}
+	return o.publishWithHeadersAndTimeout(topic, data, opts.Headers, reply, opts.Timeout)
 }
 
-func (o *Hub) PublishWithTimeout(topic string, data interface{}, reply interface{}, timeout time.Duration) error {
-	return o.PublishWithHeadersAndTimeout(topic, data, nil, reply, timeout)
-}
-
-func (o *Hub) PublishWithHeaders(topic string, data interface{}, headers codekit.M, reply interface{}) error {
-	return o.PublishWithHeadersAndTimeout(topic, data, headers, reply, o.Timeout())
-}
-
-func (o *Hub) PublishWithHeadersAndTimeout(topic string, data interface{}, headers codekit.M, reply interface{}, to time.Duration) error {
+func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, headers codekit.M, reply interface{}, to time.Duration) error {
 	if headers == nil {
 		headers = codekit.M{}
 	}
