@@ -162,6 +162,17 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 			return
 		}
 
+		if req.Headers == nil {
+			req.Headers = codekit.M{}
+		}
+
+		if req.Payload == nil {
+			m = EventResponse{Error: "payload is nil"}
+			bs, _ := h.Byter().Encode(m)
+			msg.Respond(bs)
+			return
+		}
+
 		parmPtr := reflect.New(tparm).Interface()
 		if e = h.Byter().DecodeTo(req.Payload, parmPtr, nil); e != nil {
 			ctx.Log().Error(e.Error() + " | " + tparm.Name() + " | " + string(debug.Stack()))
