@@ -331,10 +331,6 @@ func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, heade
 		return err
 	}
 
-	if reply == nil {
-		return o.nc.Publish(topic, bs)
-	}
-
 	if int(to) == 0 {
 		to = o.Timeout()
 	}
@@ -349,26 +345,28 @@ func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, heade
 		return err
 	}
 
+	if reply == nil {
+		return o.nc.Publish(topic, bsReq)
+	}
+
 	msg, e := o.nc.Request(topic, bsReq, to)
 	if e != nil {
 		return errors.New("nats receive error: " + e.Error() + ", topic: " + strings.Split(topic, "@")[0])
 	}
 
-	if reply != nil {
-		m := new(EventResponse)
-		if e = o.Byter().DecodeTo(msg.Data, m, nil); e != nil {
-			return e
-		}
-		if m.Error != "" {
-			return fmt.Errorf(m.Error)
-		}
+	m := new(EventResponse)
+	if e = o.Byter().DecodeTo(msg.Data, m, nil); e != nil {
+		return e
+	}
+	if m.Error != "" {
+		return fmt.Errorf(m.Error)
+	}
 
-		if bs, e := o.Byter().Encode(m.Data); e != nil {
+	if bs, e := o.Byter().Encode(m.Data); e != nil {
+		return e
+	} else {
+		if e := o.Byter().DecodeTo(bs, reply, nil); e != nil {
 			return e
-		} else {
-			if e := o.Byter().DecodeTo(bs, reply, nil); e != nil {
-				return e
-			}
 		}
 	}
 
