@@ -343,19 +343,21 @@ func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, heade
 		return errors.New("nats receive error: " + e.Error() + ", topic: " + strings.Split(topic, "@")[0])
 	}
 
-	m := new(EventResponse)
-	if e = o.Byter().DecodeTo(msg.Data, m, nil); e != nil {
-		return e
-	}
-	if m.Error != "" {
-		return fmt.Errorf(m.Error)
-	}
-
-	if bs, e := o.Byter().Encode(m.Data); e != nil {
-		return e
-	} else {
-		if e := o.Byter().DecodeTo(bs, reply, nil); e != nil {
+	if reply != nil {
+		m := new(EventResponse)
+		if e = o.Byter().DecodeTo(msg.Data, m, nil); e != nil {
 			return e
+		}
+		if m.Error != "" {
+			return fmt.Errorf(m.Error)
+		}
+
+		if bs, e := o.Byter().Encode(m.Data); e != nil {
+			return e
+		} else {
+			if e := o.Byter().DecodeTo(bs, reply, nil); e != nil {
+				return e
+			}
 		}
 	}
 
