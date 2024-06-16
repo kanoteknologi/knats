@@ -6,7 +6,7 @@ replace github.com/ariefdarmawan/flexpg v0.7.0 => github.com/ariefdarmawan/flexp
 
 require (
 	git.kanosolution.net/kano/dbflex v1.3.3
-	git.kanosolution.net/kano/kaos v0.3.2-0.20230605122827-0cf60e4e1675
+	git.kanosolution.net/kano/kaos v0.3.8
 	github.com/ariefdarmawan/byter v0.0.2
 	github.com/ariefdarmawan/datahub v0.2.9
 	github.com/ariefdarmawan/flexmgo v0.4.1
@@ -14,7 +14,7 @@ require (
 	github.com/kanoteknologi/khc v0.0.1
 	github.com/nats-io/nats.go v1.16.0
 	github.com/sebarcode/codekit v0.1.2
-	github.com/sebarcode/dbmod v0.0.3
+	github.com/sebarcode/dbmod v0.1.1
 	github.com/smartystreets/goconvey v1.7.2
 )
 
@@ -40,6 +40,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/samber/lo v1.38.1 // indirect
 	github.com/sebarcode/logger v0.1.1 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
@@ -54,6 +55,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	go.mongodb.org/mongo-driver v1.10.1 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
+	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect

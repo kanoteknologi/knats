@@ -84,9 +84,12 @@ func TestQueModel(t *testing.T) {
 		cv.So(ev.Error(), cv.ShouldBeNil)
 		defer ev.Close()
 
+		hm := new(kaos.HubManager)
+		hm.Set("default", "", aclHub)
+
 		sp := kaos.NewService().SetBasePoint("/event/v1").
 			RegisterEventHub(ev, "default", eventSecretID).
-			RegisterDataHub(aclHub, "default")
+			SetHubManager(hm)
 		sp.RegisterModel(new(QueUserModel), "user").SetMod(dbmod.New()).SetDeployer(knats.DeployerName, hd.DeployerName)
 		sp.RegisterModel(new(QueUserModel), "user-restrict").SetMod(dbmod.New()).SetDeployer(knats.DeployerName).
 			RegisterMW(func(ctx *kaos.Context, i interface{}) (bool, error) {

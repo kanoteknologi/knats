@@ -28,6 +28,8 @@ type Hub struct {
 	subs    []*nats.Subscription
 
 	service *kaos.Service
+
+	defaultOpts *kaos.PublishOpts
 }
 
 type EventRequest struct {
@@ -61,6 +63,11 @@ func (h *Hub) Service() *kaos.Service {
 
 func (h *Hub) SetService(s *kaos.Service) {
 	h.service = s
+}
+
+func (h *Hub) SetDefaultOpts(opts *kaos.PublishOpts) kaos.EventHub {
+	h.defaultOpts = opts
+	return h
 }
 
 func (h *Hub) Unsubscribe(name string, model *kaos.ServiceModel) {

@@ -61,7 +61,8 @@ git.kanosolution.net/kano/appkit v0.0.3/go.mod h1:R9lSLmv987MZYIcmW5QRFySaEGASi/
 git.kanosolution.net/kano/dbflex v1.0.11/go.mod h1:JwhKlws6r/uBbPE126aJpHbq3x4iugF0ViJlE/fFg/k=
 git.kanosolution.net/kano/dbflex v1.2.1/go.mod h1:kMbDllDjd+lwhCO4XRrCJP1kP0X46iPPrNG7hblrbcA=
 git.kanosolution.net/kano/dbflex v1.2.2/go.mod h1:wa4mqv+CP6fBRC6dVD4Z2473iQtiat8fWf96gBK9//E=
-git.kanosolution.net/kano/dbflex v1.2.5/go.mod h1:FQZKWzBpYXNalY8syaXBjVBXyg58hIuUXQuIB08l7Zw=
+git.kanosolution.net/kano/dbflex v1.2.5-0.20220713052237-2829fbd208ef/go.mod h1:FQZKWzBpYXNalY8syaXBjVBXyg58hIuUXQuIB08l7Zw=
+git.kanosolution.net/kano/dbflex v1.2.8/go.mod h1:FQZKWzBpYXNalY8syaXBjVBXyg58hIuUXQuIB08l7Zw=
 git.kanosolution.net/kano/dbflex v1.2.9/go.mod h1:FQZKWzBpYXNalY8syaXBjVBXyg58hIuUXQuIB08l7Zw=
 git.kanosolution.net/kano/dbflex v1.3.1/go.mod h1:mqgrdJe4IIfuLOMf1qj5kJUkL2ckiQ3XcA8LFQfE9k4=
 git.kanosolution.net/kano/dbflex v1.3.3 h1:vWmwGd91QX/Jr1E3UkkNABp8BnKgCYR5L9ioV1uYn+E=
@@ -69,8 +70,8 @@ git.kanosolution.net/kano/dbflex v1.3.3/go.mod h1:mqgrdJe4IIfuLOMf1qj5kJUkL2ckiQ
 git.kanosolution.net/kano/kaos v0.2.0/go.mod h1:NwMLC/+BhCXZ5Papa2nlsgay/PnGNd0hmz/v/q9oK6Y=
 git.kanosolution.net/kano/kaos v0.2.1/go.mod h1:xP4X/MUpDylSD8TavXFKNqb7fljbjjR2Aw8vA131xUM=
 git.kanosolution.net/kano/kaos v0.2.2/go.mod h1:p5fnPoPe6IlRYWiwWpp0huDumKkwP4ysurPZHDvkgwQ=
-git.kanosolution.net/kano/kaos v0.3.2-0.20230605122827-0cf60e4e1675 h1:NNI8ApoDBVkO7nXUwK9PZDZxvw4iJW4YH0XFOPVhBAI=
-git.kanosolution.net/kano/kaos v0.3.2-0.20230605122827-0cf60e4e1675/go.mod h1:ByHERQOJYc5Ek2IEcmjlr9qDOGlOLc42QSy9gAxv+IY=
+git.kanosolution.net/kano/kaos v0.3.8 h1:HAmhIESBFNwLoG6zLfCSHYmM89B+qXLts6KW8FL5C+Y=
+git.kanosolution.net/kano/kaos v0.3.8/go.mod h1:7GaksGLTQvH23Ee6kOI41F9v1cc4b8e17pw2d9h0jLw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
@@ -86,7 +87,7 @@ github.com/ariefdarmawan/byter v0.0.2 h1:hZsg3P7pi+CDZbEtL7Y+ZJDgJNTIkGLRIvIe+Ni
 github.com/ariefdarmawan/byter v0.0.2/go.mod h1:0CaYwyUDoab6UBmN5mdDBLmIBiqMiJv+OrTGblCMLdk=
 github.com/ariefdarmawan/datahub v0.1.13/go.mod h1:00QQV4kYSnE3rCdWZtHPmeoCdX533sP25nFS30eZSgU=
 github.com/ariefdarmawan/datahub v0.2.2/go.mod h1:/evipuY++BEb5b/HceMprpenYJPn78NP8Y0z4Gsercc=
-github.com/ariefdarmawan/datahub v0.2.6/go.mod h1:0bG0M9n8BKybu0o5aScuD/S4CMl3cIXbfEZi71Yf9mc=
+github.com/ariefdarmawan/datahub v0.2.4-0.20220713053331-d56f003571e7/go.mod h1:sar3HzckMBgeWeT3ZtcSufcZaP+Y6bHsApQUmbPif7o=
 github.com/ariefdarmawan/datahub v0.2.9 h1:yaxGiqqC2UZox2Koy6tsRdbP0sg64YW/F9mdO+vSwhM=
 github.com/ariefdarmawan/datahub v0.2.9/go.mod h1:qSRuj9dQ2Pr/Re98nsafe2AENa0VWfx09LKjcUcRyII=
 github.com/ariefdarmawan/flexmgo v0.1.15/go.mod h1:ZNVfnly+iMMBJ9sP142Kkt31CeQk+M8LLWYEfF59Qr8=
@@ -487,13 +488,15 @@ github.com/rogpeppe/go-internal v1.6.1 h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBO
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/sagikazarmark/crypt v0.6.0/go.mod h1:U8+INwJo3nBv1m6A/8OBXAq7Jnpspk5AxSgDyEQcea8=
+github.com/samber/lo v1.38.1 h1:j2XEAqXKb09Am4ebOg31SpvzUTTs6EN3VfgeLUhPdXM=
+github.com/samber/lo v1.38.1/go.mod h1:+m/ZKRl6ClXCE2Lgf3MsQlWfh4bn1bz6CXEOxnEXnEA=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/sebarcode/codekit v0.1.0/go.mod h1:o54sVKGC7+M1leMkKhVXssOXwuHCylW5GJto0UiQJEg=
 github.com/sebarcode/codekit v0.1.1/go.mod h1:CNHNFOALfsqgDmu+GIFSo4RAoCsECBCS84RmHbqj88I=
 github.com/sebarcode/codekit v0.1.2 h1:ycQnlEo+YTbqXfRlp+K7J3ASQkDiu/3sWUm790Eexl4=
 github.com/sebarcode/codekit v0.1.2/go.mod h1:CNHNFOALfsqgDmu+GIFSo4RAoCsECBCS84RmHbqj88I=
-github.com/sebarcode/dbmod v0.0.3 h1:iEA+9gskm4+KqFBMboyCghwICYsz99hwX7xKejwLH+8=
-github.com/sebarcode/dbmod v0.0.3/go.mod h1:SWDWIcM5efRZiEAjpICgBSFHEJO751O1cs8zfOb2I5A=
+github.com/sebarcode/dbmod v0.1.1 h1:U5QrPlNraBMfZciOE3MG0wuuAH8iYoJRvHRYhh1givI=
+github.com/sebarcode/dbmod v0.1.1/go.mod h1:zxtnEaQ5vIO/jz9BxU6SRr/Omy6II+w4Ru6Q8XfBvLU=
 github.com/sebarcode/logger v0.1.1 h1:qy8Ip5UacaK4LFE0hN/HXUCIu3ZBe4uta8WHQ067jfQ=
 github.com/sebarcode/logger v0.1.1/go.mod h1:dBcREBmgQLUN1kAAs5t9y7dN5RUp+OYEsk4rqUWuM5Q=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
@@ -612,6 +615,8 @@ golang.org/x/exp v0.0.0-20191227195350-da58074b4299/go.mod h1:2RIsYlXP63K8oxa1u0
 golang.org/x/exp v0.0.0-20200119233911-0405dc783f0a/go.mod h1:2RIsYlXP63K8oxa1u096TMicItID8zy7Y6sNkU49FU4=
 golang.org/x/exp v0.0.0-20200207192155-f17229e696bd/go.mod h1:J/WKrq2StrnmMY6+EHIKF9dgMWnmCNThgcyBT1FY9mM=
 golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6/go.mod h1:3jZMyOhIsHpP37uCMkUooju7aAi5cS1Q23tOzKc+0MU=
+golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 h1:3MTrJm4PyNL9NBqvYDSj3DHl46qQakyfqfWo4jgfaEM=
+golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17/go.mod h1:lgLbSvA5ygNOMpwM/9anMpWVlVJ7Z+cHWq/eFuinpGE=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.0.0-20190802002840-cff245a6509b/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
