@@ -16,8 +16,8 @@ type natsDeployer struct {
 }
 
 func init() {
-	deployer.RegisterDeployer(DeployerName, func() (deployer.Deployer, error) {
-		return new(natsDeployer), nil
+	deployer.RegisterDeployer(DeployerName, func(ev kaos.EventHub) (deployer.Deployer, error) {
+		return NewDeployer(ev), nil
 	})
 }
 

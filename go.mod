@@ -6,7 +6,7 @@ replace github.com/ariefdarmawan/flexpg v0.7.0 => github.com/ariefdarmawan/flexp
 
 require (
 	git.kanosolution.net/kano/dbflex v1.3.3
-	git.kanosolution.net/kano/kaos v0.3.8
+	git.kanosolution.net/kano/kaos v0.3.8-20240617
 	github.com/ariefdarmawan/byter v0.0.2
 	github.com/ariefdarmawan/datahub v0.2.9
 	github.com/ariefdarmawan/flexmgo v0.4.1

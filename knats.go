@@ -57,6 +57,10 @@ func NewEventHub(addr string, btr byter.Byter) kaos.EventHub {
 	return h
 }
 
+func (h *Hub) EventType() string {
+	return DeployerName
+}
+
 func (h *Hub) Service() *kaos.Service {
 	return h.service
 }

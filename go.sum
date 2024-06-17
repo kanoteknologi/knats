@@ -70,8 +70,8 @@ git.kanosolution.net/kano/dbflex v1.3.3/go.mod h1:mqgrdJe4IIfuLOMf1qj5kJUkL2ckiQ
 git.kanosolution.net/kano/kaos v0.2.0/go.mod h1:NwMLC/+BhCXZ5Papa2nlsgay/PnGNd0hmz/v/q9oK6Y=
 git.kanosolution.net/kano/kaos v0.2.1/go.mod h1:xP4X/MUpDylSD8TavXFKNqb7fljbjjR2Aw8vA131xUM=
 git.kanosolution.net/kano/kaos v0.2.2/go.mod h1:p5fnPoPe6IlRYWiwWpp0huDumKkwP4ysurPZHDvkgwQ=
-git.kanosolution.net/kano/kaos v0.3.8 h1:HAmhIESBFNwLoG6zLfCSHYmM89B+qXLts6KW8FL5C+Y=
-git.kanosolution.net/kano/kaos v0.3.8/go.mod h1:7GaksGLTQvH23Ee6kOI41F9v1cc4b8e17pw2d9h0jLw=
+git.kanosolution.net/kano/kaos v0.3.8-20240617 h1:XiXO5VWE3NPyFtRPFksSy9mGsGhlfoo75IgkuWGyrfA=
+git.kanosolution.net/kano/kaos v0.3.8-20240617/go.mod h1:7GaksGLTQvH23Ee6kOI41F9v1cc4b8e17pw2d9h0jLw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
