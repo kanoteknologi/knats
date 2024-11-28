@@ -153,6 +153,7 @@ func TestQueModel(t *testing.T) {
 	})
 }
 
+// need to create new version
 type Model1 struct {
 }
 
