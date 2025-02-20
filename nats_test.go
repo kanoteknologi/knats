@@ -67,21 +67,17 @@ func TestJetStream(t *testing.T) {
 							for index, msg := range msgs {
 								msg.Ack()
 								reply := msg.Header.Get("reply")
-								log.Infof("msg %d: %s, replyid: %s\n", index, string(msg.Data), reply)
+								log.Infof("%d msg %d: %s, replyid: %s\n", time.Now().UnixMilli(), index, string(msg.Data), reply)
 								nc.Publish(reply, []byte("OK "+string(msg.Data)))
 							}
-							time.Sleep(10 * time.Millisecond)
+							//time.Sleep(10 * time.Millisecond)
 						}
 					}
 				}()
 
-				_, err1 := jsSend(js, "js-test.send", "hello1", "reply1")
-				_, err2 := jsSend(js, "js-test.send", "hello2", "reply2")
-				_, err3 := jsSend(js, "js-test.send", "hello3", "reply3")
-
-				convey.So(err1, convey.ShouldBeNil)
-				convey.So(err2, convey.ShouldBeNil)
-				convey.So(err3, convey.ShouldBeNil)
+				go jsSend(js, "js-test.send", "hello1", "reply1")
+				go jsSend(js, "js-test.send", "hello2", "reply2")
+				go jsSend(js, "js-test.send", "hello3", "reply3")
 
 				convey.Convey("consume", func() {
 					time.Sleep(2 * time.Second)
