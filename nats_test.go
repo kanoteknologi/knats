@@ -47,6 +47,34 @@ func TestJetStream(t *testing.T) {
 			defer sub.Unsubscribe()
 
 			convey.Convey("publish", func() {
+				chanExit := make(chan bool)
+				go func() {
+					for {
+						select {
+						case <-chanExit:
+							return
+
+						default:
+							msgs, err := sub.Fetch(1)
+							if err != nil {
+								log.Errorf("fail to fetch: %s", err.Error())
+								continue
+							}
+							if len(msgs) == 0 {
+								log.Infof("no message")
+							}
+
+							for index, msg := range msgs {
+								msg.Ack()
+								reply := msg.Header.Get("reply")
+								log.Infof("msg %d: %s, replyid: %s\n", index, string(msg.Data), reply)
+								nc.Publish(reply, []byte("OK "+string(msg.Data)))
+							}
+							time.Sleep(10 * time.Millisecond)
+						}
+					}
+				}()
+
 				_, err1 := jsSend(js, "js-test.send", "hello1", "reply1")
 				_, err2 := jsSend(js, "js-test.send", "hello2", "reply2")
 				_, err3 := jsSend(js, "js-test.send", "hello3", "reply3")
@@ -56,33 +84,6 @@ func TestJetStream(t *testing.T) {
 				convey.So(err3, convey.ShouldBeNil)
 
 				convey.Convey("consume", func() {
-					chanExit := make(chan bool)
-					go func() {
-						for {
-							select {
-							case <-chanExit:
-								return
-
-							default:
-								msgs, err := sub.Fetch(1)
-								if err != nil {
-									log.Errorf("fail to fetch: %s", err.Error())
-									continue
-								}
-								if len(msgs) == 0 {
-									log.Infof("no message")
-								}
-
-								for index, msg := range msgs {
-									msg.Ack()
-									reply := msg.Header.Get("reply")
-									log.Infof("msg %d: %s, replyid: %s\n", index, string(msg.Data), reply)
-									nc.Publish(reply, []byte("OK "+string(msg.Data)))
-								}
-							}
-						}
-					}()
-
 					time.Sleep(2 * time.Second)
 					_, err4 := jsSend(js, "js-test.send", "hello4", "reply4")
 					repl5, err5 := jsSend(js, "js-test.send", "hello5", "reply5")
@@ -102,8 +103,6 @@ func jsSend(js nats.JetStreamContext, subject, data, reply string) (string, erro
 		Data:    []byte(data),
 		Header:  nats.Header{},
 	}
-	msg.Header.Set("reply", reply)
-	_, err = js.PublishMsg(msg)
 
 	// capture reply
 	sub, err := nc.SubscribeSync(reply)
@@ -111,6 +110,12 @@ func jsSend(js nats.JetStreamContext, subject, data, reply string) (string, erro
 		return "", fmt.Errorf("fail to subscribe %s: %s", reply, err.Error())
 	}
 	defer sub.Unsubscribe()
+
+	msg.Header.Set("reply", reply)
+	_, err = js.PublishMsg(msg)
+	if err != nil {
+		return "", fmt.Errorf("fail to reply %s: %s", reply, err.Error())
+	}
 
 	repl, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
