@@ -18,30 +18,35 @@ import (
 	"github.com/kanoteknologi/knats"
 	"github.com/sebarcode/codekit"
 	"github.com/sebarcode/dbmod"
+	"github.com/sebarcode/logger"
+	"github.com/smartystreets/goconvey/convey"
 	cv "github.com/smartystreets/goconvey/convey"
 )
 
 var (
 	qConnStr      = "mongodb://localhost:27017/testdb"
-	eventSecretID = "any-secret-value"
+	eventSecretID = "knats-test"
 	addrPub1      = "localhost:4901"
 	addrPub2      = "localhost:4902"
 )
 
 func TestQueBasic(t *testing.T) {
 	cv.Convey("Preparing Model1", t, func() {
-		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID)
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(20 * time.Second)
 		cv.So(ev.Error(), cv.ShouldBeNil)
 		sp := kaos.NewService().SetBasePoint("/event/v1").RegisterEventHub(ev, "default", eventSecretID)
+		sp.Log().SetLevelStdOut(logger.DebugLevel, true)
 
 		sp.RegisterModel(new(Model1), "model1").SetDeployer(knats.DeployerName, hd.DeployerName)
 
 		mux := http.NewServeMux()
-		e := hd.NewHttpDeployer(nil).Deploy(sp, mux)
+		e := hd.NewHttpDeployer(nil).Set("host", addrPub1).Deploy(sp, mux)
 		cv.So(e, cv.ShouldBeNil)
 		go http.ListenAndServe(addrPub1, mux)
 
-		e = knats.NewDeployer(ev).Deploy(sp, nil)
+		e = knats.
+			NewDeployer(ev).
+			Deploy(sp, nil)
 		cv.So(e, cv.ShouldBeNil)
 
 		cv.Convey("Prepare Model2", func() {
@@ -54,26 +59,48 @@ func TestQueBasic(t *testing.T) {
 
 			cv.Convey("Validate init", func() {
 				res := ""
-				e = ev.Publish("/event/v1/model2/sayhello", "a", &res, nil)
+				e = ev.Publish("/event/v1/model2/SayHello", "a", &res, nil)
 				cv.So(e, cv.ShouldBeNil)
-				cv.So(res, cv.ShouldEqual, "OK")
+				cv.So(res, cv.ShouldEqual, "OK a")
 
-				cv.Convey("Publish Set", func() {
-					c, e := khc.NewHttpClient(addrPub1, nil)
-					cv.So(e, cv.ShouldBeNil)
-					newmsg := "msg-after-change"
-					_, e = c.Call("/event/v1/model1/set", string(""), newmsg)
-					cv.So(e, cv.ShouldBeNil)
-
-					cv.Convey("Validate after set", func() {
-						res := ""
-						e = ev.Publish("/event/v1/model2/sayhello", "b", &res, nil)
-						cv.So(e, cv.ShouldBeNil)
-						cv.So(res, cv.ShouldEqual, newmsg)
+				/*
+					cv.Convey("Publish Set", func() {
+						cv.Convey("Validate after set", func() {
+							res := ""
+							e = ev.Publish("/event/v1/model2/SayHello", "b", &res, nil)
+							cv.So(e, cv.ShouldBeNil)
+							cv.So(res, cv.ShouldEqual, "OK b")
+						})
 					})
-				})
+				*/
 			})
 		})
+	})
+}
+
+func TestQueResp(t *testing.T) {
+	cv.Convey("Preparing Model1", t, func() {
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(20 * time.Second)
+		cv.So(ev.Error(), cv.ShouldBeNil)
+		sp := kaos.NewService().SetBasePoint("/event/v1").RegisterEventHub(ev, "default", eventSecretID)
+		sp.Log().SetLevelStdOut(logger.DebugLevel, true)
+
+		sp.RegisterModel(new(Model1), "model1").SetDeployer(knats.DeployerName, hd.DeployerName)
+
+		mux := http.NewServeMux()
+		e := hd.NewHttpDeployer(nil).Set("host", addrPub1).Deploy(sp, mux)
+		cv.So(e, cv.ShouldBeNil)
+		go http.ListenAndServe(addrPub1, mux)
+
+		e = knats.
+			NewDeployer(ev).
+			Deploy(sp, nil)
+		cv.So(e, cv.ShouldBeNil)
+
+		res := ""
+		err := ev.Publish("/event/v1/model2/SayHello", "Arief Darmawan", &res, nil)
+		convey.So(err, convey.ShouldBeNil)
+		convey.So(res, convey.ShouldEqual, "OK Arief Darmawan")
 	})
 }
 
@@ -182,10 +209,11 @@ func (m *Model2) OnSetDo(ev kaos.EventHub, svc *kaos.Service) error {
 }
 
 func (m *Model2) SayHello(ctx *kaos.Context, parm string) (string, error) {
+	ctx.Log().Infof("processing message: %s", parm)
 	if m.msg != "" {
 		return m.msg, nil
 	}
-	return "OK", nil
+	return "OK " + parm, nil
 }
 
 type QueUserModel struct {

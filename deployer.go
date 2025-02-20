@@ -6,6 +6,7 @@ import (
 
 	"git.kanosolution.net/kano/kaos"
 	"git.kanosolution.net/kano/kaos/deployer"
+	"github.com/nats-io/nats.go"
 )
 
 const DeployerName string = "kaos-nats-deployer"
@@ -16,15 +17,15 @@ type natsDeployer struct {
 }
 
 func init() {
-	deployer.RegisterDeployer(DeployerName, func(ev kaos.EventHub) (deployer.Deployer, error) {
+	deployer.RegisterDeployer(DeployerName, func(ev interface{}) (deployer.Deployer, error) {
 		return NewDeployer(ev), nil
 	})
 }
 
 // NewDeployer initiate deployer
-func NewDeployer(ev kaos.EventHub) deployer.Deployer {
+func NewDeployer(ev interface{}) deployer.Deployer {
 	dep := new(natsDeployer)
-	dep.ev = ev
+	dep.ev = ev.(kaos.EventHub)
 	return dep.SetThis(dep)
 }
 
@@ -37,6 +38,22 @@ func (h *natsDeployer) Name() string {
 }
 
 func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj interface{}) error {
+	// taken care js
+	hub := h.ev.(*Hub)
+	if hub.prefix == "" {
+		hub.prefix = hub.signature
+	}
+
+	if !hub.noJetStream {
+		_, err := hub.js.AddStream(&nats.StreamConfig{
+			Name:     hub.prefix,
+			Subjects: []string{hub.prefix + ".*"},
+		})
+		if err != nil {
+			svc.Log().Infof("stream kaos cannot be created. %s", err.Error())
+		}
+	}
+
 	fn := sr.Fn
 	ev := h.ev
 	fnType := fn.Type()
@@ -66,6 +83,9 @@ func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj
 			}
 		}
 	}
+	return nil
+}
 
+func (d *natsDeployer) Activate(obj interface{}) error {
 	return nil
 }
