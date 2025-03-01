@@ -80,7 +80,7 @@ func TestJetStream(t *testing.T) {
 				go jsSend(js, "js-test.send", "hello3", "reply3")
 
 				convey.Convey("consume", func() {
-					time.Sleep(2 * time.Second)
+					time.Sleep(100 * time.Millisecond)
 					_, err4 := jsSend(js, "js-test.send", "hello4", "reply4")
 					repl5, err5 := jsSend(js, "js-test.send", "hello5", "reply5")
 					convey.So(err4, convey.ShouldBeNil)

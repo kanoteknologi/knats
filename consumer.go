@@ -1,119 +1,98 @@
 package knats
 
 import (
-	"errors"
 	"fmt"
-	"path"
-	"reflect"
-	"runtime/debug"
-	"strings"
 
-	"git.kanosolution.net/kano/kaos"
+	"github.com/ariefdarmawan/byter"
 	"github.com/nats-io/nats.go"
 	"github.com/sebarcode/codekit"
+	"github.com/sebarcode/logger"
 )
 
-func (h *Hub) Unsubscribe(name string, model *kaos.ServiceModel) {
-	var topicName string
-	if strings.HasPrefix(name, h.prefix) {
-		topicName = name
-	} else if model != nil {
-		topicName = path.Join(h.Prefix(), model.Name, name)
+type KConsumer struct {
+	name string
+
+	nc  *nats.Conn
+	js  nats.JetStreamContext
+	log *logger.LogEngine
+	sub *nats.Subscription
+	btr byter.Byter
+
+	chanExit chan bool
+}
+
+func NewKConsumer(name string, nc *nats.Conn, log *logger.LogEngine, btr byter.Byter, stream, durable, subject string) (*KConsumer, error) {
+	js, err := nc.JetStream()
+	if err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		name = codekit.RandomString(16)
+	}
+
+	k := &KConsumer{
+		name: name,
+		nc:   nc,
+		js:   js,
+		log:  log,
+	}
+
+	if btr == nil {
+		k.btr = byter.NewByter("")
 	} else {
-		topicName = path.Join(h.Prefix(), name)
+		k.btr = btr
 	}
 
-	subs := []*nats.Subscription{}
-	for _, sub := range h.subs {
-		if sub.Subject == topicName {
-			sub.Unsubscribe()
-			continue
-		}
-
-		subs = append(subs, sub)
-	}
-	h.subs = subs
-}
-
-func (h *Hub) SubscribeEx(name string, model *kaos.ServiceModel, fn interface{}) error {
-	return h.SubscribeExWithType(name, model, fn, nil)
-}
-
-func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn interface{}, reqType reflect.Type) error {
-	if h.err != nil {
-		return h.err
-	}
-
-	if h.Service() == nil {
-		return errors.New("service is nil")
-	}
-
-	vfn := reflect.ValueOf(fn)
-	if vfn.Kind() != reflect.Func {
-		return fmt.Errorf("fn should be a function")
-	}
-	tfn := vfn.Type()
-
-	var tparm reflect.Type
-	tParmIsPtr := false
-	if reqType != nil {
-		tparm = reqType
-	} else {
-		tparm = tfn.In(1)
-	}
-	if tparm.String()[0] == '*' {
-		tParmIsPtr = true
-		tparm = tparm.Elem()
-	}
-
-	topicName := name
-	if topicName[0] == '@' {
-		topicName = name[1:]
-	}
-
-	topicNameWithSign := topicName
-	if h.signature != "" {
-		topicNameWithSign += "@" + h.signature
-	}
-
-	svc := h.Service()
-	sr := svc.GetRoute(topicName)
-	if sr == nil {
-		return fmt.Errorf("invalid route %s", topicName)
-	}
-
-	if h.noJetStream {
-		return h.subExNoJS(topicName, topicNameWithSign, svc, sr, tparm, tParmIsPtr)
-	}
-
-	topicNameWithSign = fmt.Sprintf("%s.%s", h.prefix, topicNameWithSign)
-	return h.subExJS(topicName, topicNameWithSign, svc, sr, tparm, tParmIsPtr)
-}
-
-func (h *Hub) subExJS(topicName, topicNameWithSign string, svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) error {
-	_, err := h.js.AddConsumer(h.prefix, &nats.ConsumerConfig{
-		Durable:   topicName,
+	_, err = js.AddConsumer(stream, &nats.ConsumerConfig{
+		Durable:   durable,
 		AckPolicy: nats.AckExplicitPolicy,
 	})
 	if err != nil {
-		svc.Log().Errorf("fail to add consumer %s: %s", topicName, err.Error())
+		return nil, err
 	}
 
-	sub, err := h.js.PullSubscribe(topicNameWithSign, topicName)
+	sub, err := js.PullSubscribe(subject, stream)
 	if err != nil {
-		return fmt.Errorf("fail to subscribeEx to %s: %s", topicName, err.Error())
+		return nil, err
 	}
-	h.subs = append(h.subs, sub)
-	svc.Log().Infof("event %s is activated [JetStream Exclusive]", topicName)
+	k.sub = sub
 
-	callbackFn := h.makeCbFn(svc, sr, tparm, tParmIsPtr)
+	return k, nil
+}
+
+func (k *KConsumer) Close() {
+	k.log.Warningf("%s closing consumer", k.name)
+	k.chanExit <- true
+
+	if k.sub != nil {
+		k.sub.Unsubscribe()
+	}
+	k.log.Infof("%s consumer has been closed", k.name)
+}
+
+func (k *KConsumer) Consume(fn func(*nats.Msg) (interface{}, error)) error {
+	k.log.Infof("%s start consuming", k.name)
+	k.chanExit = make(chan bool)
+
 	go func() {
 		for {
-			msgs, _ := sub.Fetch(10)
-			for _, msg := range msgs {
-				msg.AckSync()
-				svc.Log().Debugf("RECEIVED msg: %s", string(msg.Data))
-				callbackFn(msg)
+			select {
+			case exit := <-k.chanExit:
+				if exit {
+					return
+				}
+
+			default:
+				msgs, _ := k.sub.Fetch(1)
+				for _, msg := range msgs {
+					err := k.processMsg(msg, fn)
+					if err != nil {
+						k.log.Errorf("%s fail to process msg: %s", k.name, err.Error())
+					} else {
+						k.log.Debugf("%s done processing msg %s", k.name, string(msg.Data))
+					}
+				}
 			}
 		}
 	}()
@@ -121,154 +100,37 @@ func (h *Hub) subExJS(topicName, topicNameWithSign string, svc *kaos.Service, sr
 	return nil
 }
 
-func (h *Hub) subExNoJS(topicName, topicNameWithSign string, svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) error {
-	if sub, e := h.nc.QueueSubscribe(topicNameWithSign, h.Secret(), h.makeCbFn(svc, sr, tparm, tParmIsPtr)); e != nil {
-		return fmt.Errorf("fail to activate %s: %s", topicName, e.Error())
+func (k *KConsumer) processMsg(msg *nats.Msg, fn func(*nats.Msg) (interface{}, error)) error {
+	msgData := string(msg.Data)
+	msgFirst := ""
+	if len(msgData) > 50 {
+		msgFirst = msgData[:50]
 	} else {
-		h.subs = append(h.subs, sub)
+		msgFirst = msgData
+	}
+	k.log.Debugf("%s receiving msg: %s", k.name, msgFirst)
+
+	replyID := msg.Header.Get("reply")
+	resp, err := fn(msg)
+	if err != nil {
+		msg.Ack()
+		return err
+	}
+	bs, err := k.btr.Encode(resp)
+	if err != nil {
+		msg.Ack()
+		return err
 	}
 
-	h.nc.Flush()
-	svc.Log().Infof("Event %s is activated [Exclusive]", topicName)
-	return nil
-}
-
-func (h *Hub) makeCbFn(svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) func(msg *nats.Msg) {
-	return func(msg *nats.Msg) {
-		var e error
-		var m EventResponse
-		var req EventRequest
-
-		//-- decode msg to request
-		btr := h.Byter()
-		if e = btr.DecodeTo(msg.Data, &req, nil); e != nil {
-			m = EventResponse{Error: e.Error()}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
-		}
-
-		if req.Headers == nil {
-			req.Headers = codekit.M{}
-		}
-
-		if req.Payload == nil {
-			m = EventResponse{Error: "payload is nil"}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
-		}
-
-		parmPtr := reflect.New(tparm).Interface()
-		if e = h.Byter().DecodeTo(req.Payload, parmPtr, nil); e != nil {
-			svc.Log().Error(e.Error() + " | " + tparm.Name() + " | " + string(debug.Stack()))
-			m = EventResponse{Error: e.Error() + " | " + string(debug.Stack())}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
-		}
-
-		kaosCtx := kaos.NewContextFromService(svc, sr)
-		if req.Headers != nil {
-			for k, v := range req.Headers {
-				kaosCtx.Data().Set(k, v)
-			}
-		}
-
-		// get parm to be passed to function
-		var parm any
-		if tParmIsPtr {
-			parm = parmPtr
-		} else {
-			parm = reflect.ValueOf(parmPtr).Elem().Interface()
-		}
-
-		m = EventResponse{}
-		res, err := sr.Run(kaosCtx, svc, parm)
+	if replyID != "" {
+		err := k.nc.Publish(replyID, bs)
 		if err != nil {
-			m.Error = err.Error()
-		} else {
-			m.Data = res
+			msg.Ack()
+			return fmt.Errorf("fail to publish reply: %s", err.Error())
 		}
-
-		bs, e := h.Byter().Encode(m)
-		if e != nil {
-			svc.Log().Errorf("fail to encode response: %s", e.Error())
-			h.respondMsg(msg, svc, req, []byte{})
-		}
-		h.respondMsg(msg, svc, req, bs)
-	}
-}
-
-func (h *Hub) respondMsg(msg *nats.Msg, svc *kaos.Service, req EventRequest, bs []byte) error {
-	if h.noJetStream {
-		msg.Respond(bs)
-	} else {
-		replyId := req.Headers.GetString("reply")
-		if replyId == "" {
-			return nil
-		}
-		h.nc.Publish(replyId, bs)
+		k.log.Debugf("%s replying to %s", k.name, replyID)
 	}
 
-	return nil
-}
-
-func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface{}) error {
-	if h.err != nil {
-		return h.err
-	}
-
-	svc := h.Service()
-	ctx := kaos.NewContextFromService(svc, nil)
-	vfn := reflect.ValueOf(fn)
-	if vfn.Kind() != reflect.Func {
-		return fmt.Errorf("fn should be a function")
-	}
-	tfn := vfn.Type()
-
-	parmIsPtr := false
-	tparm := tfn.In(1)
-	if tparm.String()[0] == '*' {
-		parmIsPtr = true
-		tparm = tparm.Elem()
-	}
-
-	if topicName[0] == '@' {
-		topicName = topicName[1:]
-	} else if !strings.HasPrefix(topicName, h.Prefix()) {
-		if model != nil {
-			topicName = path.Join(svc.BasePoint(), model.Name, topicName)
-		} else {
-			topicName = path.Join(svc.BasePoint(), topicName)
-		}
-	}
-
-	topicNameWithSign := topicName
-	if h.signature != "" {
-		topicNameWithSign += "@" + h.signature
-	}
-	sub, e := h.nc.Subscribe(topicNameWithSign, func(msg *nats.Msg) {
-		parmPtr := reflect.New(tparm).Interface()
-		e := h.Byter().DecodeTo(msg.Data, parmPtr, nil)
-		if e != nil {
-			return
-		}
-
-		var vparm reflect.Value
-		if parmIsPtr {
-			vparm = reflect.ValueOf(parmPtr)
-		} else {
-			vparm = reflect.ValueOf(parmPtr).Elem()
-		}
-		vfn.Call([]reflect.Value{reflect.ValueOf(ctx), vparm})
-	})
-	if e != nil {
-		return fmt.Errorf("fail to subscribe to %s. %s", topicName, e.Error())
-	}
-	h.nc.Flush()
-	h.subs = append(h.subs, sub)
-
-	svc.Log().Infof("Service is subscribe to event %s from %s", topicName, svc.BasePoint())
+	msg.Ack()
 	return nil
 }

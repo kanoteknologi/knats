@@ -1,140 +1,150 @@
 package knats
 
 import (
-	"errors"
 	"fmt"
-	"strings"
+	"reflect"
 	"time"
 
-	"git.kanosolution.net/kano/kaos"
+	"github.com/ariefdarmawan/byter"
 	"github.com/nats-io/nats.go"
 	"github.com/sebarcode/codekit"
+	"github.com/sebarcode/logger"
 )
 
-func (o *Hub) Publish(topic string, data interface{}, reply interface{}, opts *kaos.PublishOpts) error {
-	if opts == nil {
-		opts = &kaos.PublishOpts{
-			Headers: codekit.M{},
-			Timeout: o.timeout,
-		}
-	}
-	if opts.Headers == nil {
-		opts.Headers = codekit.M{}
-	}
-	if int(opts.Timeout) == 0 {
-		opts.Timeout = o.Timeout()
-	}
-	return o.publishWithHeadersAndTimeout(topic, data, opts.Headers, reply, opts.Timeout)
+type KPublisher struct {
+	name    string
+	nc      *nats.Conn
+	js      nats.JetStreamContext
+	log     *logger.LogEngine
+	btr     byter.Byter
+	timeout time.Duration
 }
 
-func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, headers codekit.M, reply interface{}, timeOutDuration time.Duration) error {
-	if headers == nil {
-		headers = codekit.M{}
-	}
-
-	prefix := o.Prefix()
-	if !o.noJetStream && prefix != "" {
-		if !strings.HasPrefix(topic, prefix) {
-			topic = fmt.Sprintf("%s.%s", prefix, topic)
-		}
-	}
-
-	//topic = strings.ToLower(topic)
-	if o.signature != "" {
-		topic += "@" + o.signature
-	}
-
-	bs, err := o.Byter().Encode(data)
+func NewKPublisher(name string, nc *nats.Conn, log *logger.LogEngine, btr byter.Byter, timeout time.Duration, stream string, subjects ...string) (*KPublisher, error) {
+	js, err := nc.JetStream()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if int(timeOutDuration) == 0 {
-		timeOutDuration = o.Timeout()
+	if name == "" {
+		name = codekit.RandomString(16)
 	}
 
-	replySubject := codekit.RandomString(32)
-	o.service.Log().Debugf("PREPARE reply %s", replySubject)
-	headers.Set("reply", replySubject)
-	msgReq := EventRequest{
-		Headers: headers,
-		Payload: bs,
+	k := &KPublisher{
+		name:    name,
+		nc:      nc,
+		js:      js,
+		log:     log,
+		timeout: timeout,
+	}
+	if k.timeout == 0 {
+		k.timeout = 5 * time.Second
 	}
 
-	bsReq, err := o.Byter().Encode(msgReq)
+	if btr == nil {
+		k.btr = byter.NewByter("")
+	} else {
+		k.btr = btr
+	}
+
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:     stream,
+		Subjects: subjects,
+	})
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("fail to create stream. %s", err.Error())
 	}
 
-	var msg *nats.Msg
+	return k, nil
+}
 
-	if o.noJetStream {
-		if reply == nil {
-			err = o.nc.Publish(topic, bsReq)
-			if err != nil {
-				return fmt.Errorf("fail to publish %s: %s", topic, err.Error())
-			}
+func (k *KPublisher) Close() {
+}
+
+func (k *KPublisher) Publish(subject string, data interface{}, replyObj interface{}) error {
+	var (
+		rv       reflect.Value
+		replySub *nats.Subscription
+		err      error
+	)
+	replyID := ""
+
+	if replyObj != nil {
+		rv = reflect.ValueOf(replyObj)
+		kind := rv.Kind()
+		if kind != reflect.Ptr {
+			return fmt.Errorf("replyObj should be a pointer, currently %s", kind.String())
 		}
-		msg, err = o.nc.Request(topic, bsReq, timeOutDuration)
+		replyID = fmt.Sprintf("%s_%s", k.name, codekit.RandomString(16))
+		replySub, err = k.nc.SubscribeSync(replyID)
 		if err != nil {
-			return errors.New("nats receive error: " + err.Error() + ", topic: " + strings.Split(topic, "@")[0])
+			return fmt.Errorf("%s fail to create reply subject. %s", k.name, err.Error())
 		}
-	} else {
-		if reply == nil {
-			_, err = o.js.Publish(topic, bsReq)
-			if err != nil {
-				return fmt.Errorf("fail to publish %s: %s", topic, err.Error())
-			}
-			return nil
-		} else {
-			msg, err = func() (*nats.Msg, error) {
-				reply, err := o.nc.SubscribeSync(replySubject)
-				if err != nil {
-					return nil, fmt.Errorf("fail to create reply subject: %s", err.Error())
-				}
-				defer reply.Unsubscribe()
+		k.log.Debugf("%s prepare reply subject: %s", k.name, replyID)
+	}
 
-				msg := &nats.Msg{
-					Subject: topic,
-					Data:    bsReq,
-					Header:  nats.Header{},
-				}
+	dataBs, err := k.btr.Encode(data)
+	if err != nil {
+		return fmt.Errorf("%s fail to encode publisher data. %s", k.name, err.Error())
+	}
 
-				_, err = o.js.PublishMsg(msg)
-				if err != nil {
-					return nil, fmt.Errorf("fail to publish: %s", err.Error())
-				}
-				o.service.Log().Debugf("PUBLISHED with reply %s", replySubject)
+	msg := &nats.Msg{
+		Subject: subject,
+		Data:    dataBs,
+		Header:  nats.Header{},
+	}
+	msg.Header.Set("reply", replyID)
 
-				if timeOutDuration == 0 {
-					timeOutDuration = o.Timeout()
-				}
-				replyMsg, err := reply.NextMsg(timeOutDuration)
-				if err != nil {
-					return nil, fmt.Errorf("fail to get reply: %s", err.Error())
-				}
+	_, err = k.js.PublishMsg(msg)
+	if err != nil {
+		return fmt.Errorf("%s fail to publish message. %s", k.name, err.Error())
+	}
 
-				return replyMsg, nil
-			}()
-			if err != nil {
-				return err
-			}
+	if replySub != nil {
+		replyMsg, err := replySub.NextMsg(k.timeout)
+		if err != nil {
+			return fmt.Errorf("%s fail to get reply message. %s", k.name, err.Error())
+		}
+		replyMsg.Ack()
+
+		if err = k.btr.DecodeTo(replyMsg.Data, replyObj, nil); err != nil {
+			return fmt.Errorf("%s fail to decode reply message. %s", k.name, err.Error())
 		}
 	}
 
-	m := new(EventResponse)
-	if err = o.Byter().DecodeTo(msg.Data, m, nil); err != nil {
-		return err
-	}
-	if m.Error != "" {
-		return errors.New(m.Error)
+	return nil
+}
+
+func (k *KPublisher) PublishClassic(subject string, data interface{}, replyObj interface{}) error {
+	var (
+		rv  reflect.Value
+		err error
+	)
+
+	if replyObj != nil {
+		if rv.Kind() != reflect.Ptr {
+			return fmt.Errorf("replyObj should be a pointer")
+		}
 	}
 
-	if bs, e := o.Byter().Encode(m.Data); e != nil {
-		return e
+	dataBs, err := k.btr.Encode(data)
+	if err != nil {
+		return fmt.Errorf("%s fail to encode publisher data. %s", k.name, err.Error())
+	}
+
+	var replyMsg *nats.Msg
+	if replyObj != nil {
+		err = k.nc.Publish(subject, dataBs)
+		if err != nil {
+			return fmt.Errorf("%s fail to publish message. %s", k.name, err.Error())
+		}
 	} else {
-		if e := o.Byter().DecodeTo(bs, reply, nil); e != nil {
-			return e
+		replyMsg, err = k.nc.Request(subject, dataBs, k.timeout)
+		if err != nil {
+			return fmt.Errorf("%s fail to request message. %s", k.name, err.Error())
+		}
+		if err = k.btr.DecodeTo(replyMsg.Data, replyObj, nil); err != nil {
+			return fmt.Errorf("%s fail to decode reply message. %s", k.name, err.Error())
 		}
 	}
 
