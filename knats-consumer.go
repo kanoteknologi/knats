@@ -91,38 +91,42 @@ func (h *Hub) SubscribeExWithType(name string, model *kaos.ServiceModel, fn inte
 }
 
 func (h *Hub) subExJS(topicName, topicNameWithSign string, svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) error {
-	_, err := h.js.AddConsumer(h.prefix, &nats.ConsumerConfig{
-		Durable:   topicName,
-		AckPolicy: nats.AckExplicitPolicy,
-	})
-	if err != nil {
-		svc.Log().Errorf("fail to add consumer %s: %s", topicName, err.Error())
+	if h.consumers == nil {
+		h.consumers = map[string]*KConsumer{}
+	}
+	con, has := h.consumers[topicName]
+	if has {
+		con.Close()
+		delete(h.consumers, topicName)
 	}
 
-	sub, err := h.js.PullSubscribe(topicNameWithSign, topicName)
+	durable := fmt.Sprintf("%s_%s", h.prefix, codekit.GenerateRandomString("abcdefghijklmnopqrstuvwxyz0123456789", 16))
+	con, err := NewKConsumer(topicName, h.nc, svc.Log(), h.Byter(), h.prefix, durable, topicNameWithSign)
 	if err != nil {
-		return fmt.Errorf("fail to subscribeEx to %s: %s", topicName, err.Error())
+		return fmt.Errorf("fail to create consumer %s: %s", topicName, err.Error())
 	}
-	h.subs = append(h.subs, sub)
-	svc.Log().Infof("event %s is activated [JetStream Exclusive]", topicName)
-
+	con.name = topicName
 	callbackFn := h.makeCbFn(svc, sr, tparm, tParmIsPtr)
-	go func() {
-		for {
-			msgs, _ := sub.Fetch(10)
-			for _, msg := range msgs {
-				msg.Ack()
-				svc.Log().Debugf("RECEIVED msg: %s", string(msg.Data))
-				callbackFn(msg)
-			}
-		}
-	}()
+	con.Consume(callbackFn)
+	h.consumers[topicName] = con
 
 	return nil
 }
 
 func (h *Hub) subExNoJS(topicName, topicNameWithSign string, svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) error {
-	if sub, e := h.nc.QueueSubscribe(topicNameWithSign, h.Secret(), h.makeCbFn(svc, sr, tparm, tParmIsPtr)); e != nil {
+	cb := h.makeCbFn(svc, sr, tparm, tParmIsPtr)
+
+	fn := func(msg *nats.Msg) {
+		resp, e := cb(msg)
+		if e != nil {
+			svc.Log().Errorf("fail to process message: %s", e.Error())
+			return
+		}
+		byteResp, _ := h.Byter().Encode(resp)
+		msg.Respond(byteResp)
+	}
+
+	if sub, e := h.nc.QueueSubscribe(topicNameWithSign, h.Secret(), fn); e != nil {
 		return fmt.Errorf("fail to activate %s: %s", topicName, e.Error())
 	} else {
 		h.subs = append(h.subs, sub)
@@ -133,46 +137,19 @@ func (h *Hub) subExNoJS(topicName, topicNameWithSign string, svc *kaos.Service, 
 	return nil
 }
 
-func (h *Hub) makeCbFn(svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) func(msg *nats.Msg) {
-	return func(msg *nats.Msg) {
+func (h *Hub) makeCbFn(svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.Type, tParmIsPtr bool) func(msg *nats.Msg) (interface{}, error) {
+	return func(msg *nats.Msg) (interface{}, error) {
 		var e error
-		var m EventResponse
-		var req EventRequest
-
-		//-- decode msg to request
-		btr := h.Byter()
-		if e = btr.DecodeTo(msg.Data, &req, nil); e != nil {
-			m = EventResponse{Error: e.Error()}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
-		}
-
-		if req.Headers == nil {
-			req.Headers = codekit.M{}
-		}
-
-		if req.Payload == nil {
-			m = EventResponse{Error: "payload is nil"}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
-		}
 
 		parmPtr := reflect.New(tparm).Interface()
-		if e = h.Byter().DecodeTo(req.Payload, parmPtr, nil); e != nil {
+		if e = h.Byter().DecodeTo(msg.Data, parmPtr, nil); e != nil {
 			svc.Log().Error(e.Error() + " | " + tparm.Name() + " | " + string(debug.Stack()))
-			m = EventResponse{Error: e.Error() + " | " + string(debug.Stack())}
-			bs, _ := h.Byter().Encode(m)
-			h.respondMsg(msg, svc, req, bs)
-			return
+			return nil, e
 		}
 
 		kaosCtx := kaos.NewContextFromService(svc, sr)
-		if req.Headers != nil {
-			for k, v := range req.Headers {
-				kaosCtx.Data().Set(k, v)
-			}
+		for k, v := range msg.Header {
+			kaosCtx.Data().Set(k, v)
 		}
 
 		// get parm to be passed to function
@@ -183,35 +160,9 @@ func (h *Hub) makeCbFn(svc *kaos.Service, sr *kaos.ServiceRoute, tparm reflect.T
 			parm = reflect.ValueOf(parmPtr).Elem().Interface()
 		}
 
-		m = EventResponse{}
 		res, err := sr.Run(kaosCtx, svc, parm)
-		if err != nil {
-			m.Error = err.Error()
-		} else {
-			m.Data = res
-		}
-
-		bs, e := h.Byter().Encode(m)
-		if e != nil {
-			svc.Log().Errorf("fail to encode response: %s", e.Error())
-			h.respondMsg(msg, svc, req, []byte{})
-		}
-		h.respondMsg(msg, svc, req, bs)
+		return res, err
 	}
-}
-
-func (h *Hub) respondMsg(msg *nats.Msg, svc *kaos.Service, req EventRequest, bs []byte) error {
-	if h.noJetStream {
-		msg.Respond(bs)
-	} else {
-		replyId := req.Headers.GetString("reply")
-		if replyId == "" {
-			return nil
-		}
-		h.nc.Publish(replyId, bs)
-	}
-
-	return nil
 }
 
 func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface{}) error {

@@ -32,7 +32,10 @@ var (
 
 func TestQueBasic(t *testing.T) {
 	cv.Convey("Preparing Model1", t, func() {
-		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(20 * time.Second)
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).
+			SetSecret(eventSecretID).
+			SetTimeout(20 * time.Second).
+			SetPrefix("nats-js")
 		cv.So(ev.Error(), cv.ShouldBeNil)
 		sp := kaos.NewService().SetBasePoint("/event/v1").RegisterEventHub(ev, "default", eventSecretID)
 		sp.Log().SetLevelStdOut(logger.DebugLevel, true)
@@ -59,17 +62,19 @@ func TestQueBasic(t *testing.T) {
 
 			cv.Convey("Validate init", func() {
 				res := ""
-				e = ev.Publish("/event/v1/model2/SayHello", "a", &res, nil)
+				e = ev.Publish("/event/v1/model2/Hello", "a", &res, nil)
 				cv.So(e, cv.ShouldBeNil)
 				cv.So(res, cv.ShouldEqual, "OK a")
 
 				/*
 					cv.Convey("Publish Set", func() {
+						e = ev.Publish("/event/v1/model2/Set", "Welcome", &res, nil)
+
 						cv.Convey("Validate after set", func() {
 							res := ""
-							e = ev.Publish("/event/v1/model2/SayHello", "b", &res, nil)
+							e = ev.Publish("/event/v1/model2/Hello", "b", &res, nil)
 							cv.So(e, cv.ShouldBeNil)
-							cv.So(res, cv.ShouldEqual, "OK b")
+							cv.So(res, cv.ShouldEqual, "Welcome b")
 						})
 					})
 				*/
@@ -98,7 +103,7 @@ func TestQueResp(t *testing.T) {
 		cv.So(e, cv.ShouldBeNil)
 
 		res := ""
-		err := ev.Publish("/event/v1/model2/SayHello", "Arief Darmawan", &res, nil)
+		err := ev.Publish("/event/v1/model2/Hello", "Arief Darmawan", &res, nil)
 		convey.So(err, convey.ShouldBeNil)
 		convey.So(res, convey.ShouldEqual, "OK Arief Darmawan")
 	})
@@ -202,18 +207,18 @@ type Model2 struct {
 func (m *Model2) OnSetDo(ev kaos.EventHub, svc *kaos.Service) error {
 	return ev.Subscribe("/event/v1/model1/onset", nil,
 		func(ctx *kaos.Context, parm string) (string, error) {
-			//ctx.Log().Infof("setting-up data: %s", parm)
 			m.msg = parm
 			return "OK", nil
 		})
 }
 
-func (m *Model2) SayHello(ctx *kaos.Context, parm string) (string, error) {
-	ctx.Log().Infof("processing message: %s", parm)
+func (m *Model2) Hello(ctx *kaos.Context, parm string) (string, error) {
+	ctx.Log().Debugf("processing message: %s", parm)
 	if m.msg != "" {
-		return m.msg, nil
+		return m.msg + " " + parm, nil
 	}
-	return "OK " + parm, nil
+	res := "OK " + parm
+	return res, nil
 }
 
 type QueUserModel struct {

@@ -3,6 +3,7 @@ package knats
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/ariefdarmawan/byter"
@@ -51,7 +52,7 @@ func NewKPublisher(name string, nc *nats.Conn, log *logger.LogEngine, btr byter.
 		Name:     stream,
 		Subjects: subjects,
 	})
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "already in use") {
 		return nil, fmt.Errorf("fail to create stream. %s", err.Error())
 	}
 
@@ -61,7 +62,7 @@ func NewKPublisher(name string, nc *nats.Conn, log *logger.LogEngine, btr byter.
 func (k *KPublisher) Close() {
 }
 
-func (k *KPublisher) Publish(subject string, data interface{}, replyObj interface{}) error {
+func (k *KPublisher) Publish(subject string, data interface{}, headers codekit.M, replyObj interface{}) error {
 	var (
 		rv       reflect.Value
 		replySub *nats.Subscription
@@ -69,13 +70,17 @@ func (k *KPublisher) Publish(subject string, data interface{}, replyObj interfac
 	)
 	replyID := ""
 
+	if k == nil {
+		return fmt.Errorf("KPublisher is nil")
+	}
+
 	if replyObj != nil {
 		rv = reflect.ValueOf(replyObj)
 		kind := rv.Kind()
 		if kind != reflect.Ptr {
 			return fmt.Errorf("replyObj should be a pointer, currently %s", kind.String())
 		}
-		replyID = fmt.Sprintf("%s_%s", k.name, codekit.RandomString(16))
+		replyID = fmt.Sprintf("knats_respond_%s", codekit.RandomString(16))
 		replySub, err = k.nc.SubscribeSync(replyID)
 		if err != nil {
 			return fmt.Errorf("%s fail to create reply subject. %s", k.name, err.Error())
@@ -83,16 +88,11 @@ func (k *KPublisher) Publish(subject string, data interface{}, replyObj interfac
 		k.log.Debugf("%s prepare reply subject: %s", k.name, replyID)
 	}
 
-	dataBs, err := k.btr.Encode(data)
+	msg, err := k.ToMsg(data, headers)
 	if err != nil {
-		return fmt.Errorf("%s fail to encode publisher data. %s", k.name, err.Error())
+		return fmt.Errorf("%s fail to build a message for payload. %s", k.name, err.Error())
 	}
-
-	msg := &nats.Msg{
-		Subject: subject,
-		Data:    dataBs,
-		Header:  nats.Header{},
-	}
+	msg.Subject = subject
 	msg.Header.Set("reply", replyID)
 
 	_, err = k.js.PublishMsg(msg)
@@ -101,6 +101,10 @@ func (k *KPublisher) Publish(subject string, data interface{}, replyObj interfac
 	}
 
 	if replySub != nil {
+		defer func() {
+			go replySub.Unsubscribe()
+		}()
+
 		replyMsg, err := replySub.NextMsg(k.timeout)
 		if err != nil {
 			return fmt.Errorf("%s fail to get reply message. %s", k.name, err.Error())
@@ -149,4 +153,23 @@ func (k *KPublisher) PublishClassic(subject string, data interface{}, replyObj i
 	}
 
 	return nil
+}
+
+func (k *KPublisher) ToMsg(data interface{}, headers codekit.M) (*nats.Msg, error) {
+	bs, err := k.btr.Encode(data)
+	if err != nil {
+		return nil, fmt.Errorf("fail to encode data: %s", err.Error())
+	}
+	msg := &nats.Msg{
+		Data:   bs,
+		Header: nats.Header{},
+	}
+	for hdr, value := range headers {
+		vstr, ok := value.(string)
+		if !ok {
+			continue
+		}
+		msg.Header.Set(hdr, vstr)
+	}
+	return msg, nil
 }

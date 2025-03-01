@@ -38,10 +38,10 @@ func TestPublisherConsumer(t *testing.T) {
 			convey.Convey("publish", func() {
 				wg.Add(3)
 				res3 := ""
-				go pub.Publish("js-test.send", "hello 1", nil)
-				go pub.Publish("js-test.send", "hello 2", nil)
+				go pub.Publish("js-test.send", "hello 1", nil, nil)
+				go pub.Publish("js-test.send", "hello 2", nil, nil)
 				go func(wg *sync.WaitGroup) {
-					err := pub.Publish("js-test.send", "hello 3", &res3)
+					err := pub.Publish("js-test.send", "hello 3", nil, &res3)
 					if err != nil {
 						errStr := err.Error()
 						log.Errorf("fail to publish: %s", err.Error())
@@ -57,7 +57,7 @@ func TestPublisherConsumer(t *testing.T) {
 				time.Sleep(100 * time.Millisecond) //karena wg.done nya di proses perlu waktu tambahan sedikit
 
 				log.Infof("all publish has been completed")
-				convey.So(res3, convey.ShouldEqual, "hello 3")
+				convey.So(res3, convey.ShouldEqual, "hello 3 respond")
 			})
 		})
 	})
@@ -67,6 +67,6 @@ func handleMsg(wg *sync.WaitGroup) func(msg *nats.Msg) (interface{}, error) {
 	return func(msg *nats.Msg) (interface{}, error) {
 		defer wg.Done()
 		log.Infof("WORKING ON msg %s reply %s", string(msg.Data), msg.Header.Get("reply"))
-		return string(msg.Data), nil
+		return string(msg.Data) + " respond", nil
 	}
 }

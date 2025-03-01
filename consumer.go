@@ -45,14 +45,16 @@ func NewKConsumer(name string, nc *nats.Conn, log *logger.LogEngine, btr byter.B
 	}
 
 	_, err = js.AddConsumer(stream, &nats.ConsumerConfig{
-		Durable:   durable,
-		AckPolicy: nats.AckExplicitPolicy,
+		Description:   subject,
+		Durable:       durable,
+		AckPolicy:     nats.AckExplicitPolicy,
+		FilterSubject: subject,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	sub, err := js.PullSubscribe(subject, stream)
+	sub, err := js.PullSubscribe(subject, durable)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func (k *KConsumer) Consume(fn func(*nats.Msg) (interface{}, error)) error {
 					if err != nil {
 						k.log.Errorf("%s fail to process msg: %s", k.name, err.Error())
 					} else {
-						k.log.Debugf("%s done processing msg %s", k.name, string(msg.Data))
+						k.log.Debugf("%s done with msg %s", k.name, string(msg.Data))
 					}
 				}
 			}
@@ -101,14 +103,16 @@ func (k *KConsumer) Consume(fn func(*nats.Msg) (interface{}, error)) error {
 }
 
 func (k *KConsumer) processMsg(msg *nats.Msg, fn func(*nats.Msg) (interface{}, error)) error {
-	msgData := string(msg.Data)
-	msgFirst := ""
-	if len(msgData) > 50 {
-		msgFirst = msgData[:50]
-	} else {
-		msgFirst = msgData
+	if k.log.StdOutLevel(logger.DebugLevel) {
+		msgData := string(msg.Data)
+		msgFirst := ""
+		if len(msgData) > 50 {
+			msgFirst = msgData[:50]
+		} else {
+			msgFirst = msgData
+		}
+		k.log.Debugf("%s receiving msg: %s", k.name, msgFirst)
 	}
-	k.log.Debugf("%s receiving msg: %s", k.name, msgFirst)
 
 	replyID := msg.Header.Get("reply")
 	resp, err := fn(msg)
@@ -130,7 +134,6 @@ func (k *KConsumer) processMsg(msg *nats.Msg, fn func(*nats.Msg) (interface{}, e
 		}
 		k.log.Debugf("%s replying to %s", k.name, replyID)
 	}
-
 	msg.Ack()
 	return nil
 }

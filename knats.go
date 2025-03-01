@@ -27,6 +27,9 @@ type Hub struct {
 	service *kaos.Service
 
 	defaultOpts *kaos.PublishOpts
+
+	publisher *KPublisher
+	consumers map[string]*KConsumer
 }
 
 type EventRequest struct {
@@ -41,7 +44,7 @@ type EventResponse struct {
 	Error string
 }
 
-func NewEventHub(addr string, btr byter.Byter) kaos.EventHub {
+func NewEventHub(addr string, btr byter.Byter) *Hub {
 	h := new(Hub)
 	h.addr = addr
 	nc, err := nats.Connect(h.addr)
@@ -138,6 +141,10 @@ func (h *Hub) Error() error {
 func (h *Hub) Close() {
 	for _, sub := range h.subs {
 		sub.Unsubscribe()
+	}
+
+	for _, con := range h.consumers {
+		con.Close()
 	}
 
 	if h.nc != nil {

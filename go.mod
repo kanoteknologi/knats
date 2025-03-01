@@ -17,6 +17,7 @@ require (
 	github.com/nats-io/nats.go v1.16.0
 	github.com/sebarcode/codekit v0.1.2
 	github.com/sebarcode/dbmod v0.1.1
+	github.com/sebarcode/logger v0.1.1
 	github.com/smartystreets/goconvey v1.7.2
 )
 
@@ -36,7 +37,6 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/samber/lo v1.38.1 // indirect
-	github.com/sebarcode/logger v0.1.1 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
