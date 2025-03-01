@@ -68,7 +68,7 @@ func (h *natsDeployer) DeployRoute(svc *kaos.Service, sr *kaos.ServiceRoute, obj
 				reflect.ValueOf(svc),
 			})
 			if outs[0].IsNil() {
-				svc.Log().Infof("%s is deployed", sr.Path)
+				//svc.Log().Infof("%s is deployed", sr.Path)
 			} else {
 				errRun := outs[0].Interface().(error)
 				if errRun != nil {

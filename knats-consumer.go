@@ -185,14 +185,19 @@ func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface
 		tparm = tparm.Elem()
 	}
 
+	basePoint := svc.BasePoint()
 	if topicName[0] == '@' {
 		topicName = topicName[1:]
-	} else if !strings.HasPrefix(topicName, h.Prefix()) {
+	} else if !strings.HasPrefix(topicName, h.prefix) && !strings.HasPrefix(topicName, basePoint) {
 		if model != nil {
-			topicName = path.Join(svc.BasePoint(), model.Name, topicName)
+			topicName = path.Join(basePoint, model.Name, topicName)
 		} else {
-			topicName = path.Join(svc.BasePoint(), topicName)
+			topicName = path.Join(basePoint, topicName)
 		}
+	}
+
+	if !strings.HasPrefix(topicName, h.prefix) {
+		topicName = fmt.Sprintf("%s.%s", h.prefix, topicName)
 	}
 
 	topicNameWithSign := topicName
@@ -220,6 +225,6 @@ func (h *Hub) Subscribe(topicName string, model *kaos.ServiceModel, fn interface
 	h.nc.Flush()
 	h.subs = append(h.subs, sub)
 
-	svc.Log().Infof("Service is subscribe to event %s from %s", topicName, svc.BasePoint())
+	svc.Log().Infof("service %s is subscribe to event %s", svc.BasePoint(), topicName)
 	return nil
 }

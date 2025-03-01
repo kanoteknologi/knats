@@ -66,18 +66,17 @@ func TestQueBasic(t *testing.T) {
 				cv.So(e, cv.ShouldBeNil)
 				cv.So(res, cv.ShouldEqual, "OK a")
 
-				/*
-					cv.Convey("Publish Set", func() {
-						e = ev.Publish("/event/v1/model2/Set", "Welcome", &res, nil)
+				cv.Convey("Publish Set", func() {
+					e = ev.Publish("/event/v1/model1/onSet", "Welcome", nil, nil)
+					cv.So(e, cv.ShouldBeNil)
 
-						cv.Convey("Validate after set", func() {
-							res := ""
-							e = ev.Publish("/event/v1/model2/Hello", "b", &res, nil)
-							cv.So(e, cv.ShouldBeNil)
-							cv.So(res, cv.ShouldEqual, "Welcome b")
-						})
+					cv.Convey("Validate after set", func() {
+						res := ""
+						e = ev.Publish("/event/v1/model2/Hello", "B", &res, nil)
+						cv.So(e, cv.ShouldBeNil)
+						cv.So(res, cv.ShouldEqual, "Welcome B")
 					})
-				*/
+				})
 			})
 		})
 	})
@@ -194,21 +193,22 @@ func (m *Model1) Set(c *kaos.Context, parm string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	if e = ev.Publish("/event/v1/model1/onset", parm, nil, nil); e != nil {
+	res := ""
+	if e = ev.Publish("/event/v1/model1/onSet", parm, &res, nil); e != nil {
 		return "", e
 	}
-	return parm, nil
+	return res, nil
 }
 
 type Model2 struct {
 	msg string
 }
 
-func (m *Model2) OnSetDo(ev kaos.EventHub, svc *kaos.Service) error {
-	return ev.Subscribe("/event/v1/model1/onset", nil,
+func (m *Model2) Set(ev kaos.EventHub, svc *kaos.Service) error {
+	return ev.Subscribe("/event/v1/model1/onSet", nil,
 		func(ctx *kaos.Context, parm string) (string, error) {
 			m.msg = parm
-			return "OK", nil
+			return parm, nil
 		})
 }
 

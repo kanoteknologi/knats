@@ -31,16 +31,19 @@ func (o *Hub) publishWithHeadersAndTimeout(topic string, data interface{}, heade
 		headers = codekit.M{}
 	}
 
-	prefix := o.Prefix()
-	if !o.noJetStream && prefix != "" {
-		if !strings.HasPrefix(topic, prefix) {
-			topic = fmt.Sprintf("%s.%s", prefix, topic)
+	if topic[0] == '@' {
+		topic = topic[1:]
+	} else {
+		prefix := o.Prefix()
+		if !o.noJetStream && prefix != "" {
+			if !strings.HasPrefix(topic, prefix) {
+				topic = fmt.Sprintf("%s.%s", prefix, topic)
+			}
 		}
-	}
 
-	//topic = strings.ToLower(topic)
-	if o.signature != "" {
-		topic += "@" + o.signature
+		if o.signature != "" {
+			topic += "@" + o.signature
+		}
 	}
 
 	replySubject := codekit.RandomString(32)
