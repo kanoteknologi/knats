@@ -84,12 +84,15 @@ func TestQueBasic(t *testing.T) {
 
 func TestQueResp(t *testing.T) {
 	cv.Convey("Preparing Model1", t, func() {
-		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(20 * time.Second)
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).
+			SetSecret(eventSecretID).
+			SetPrefix("nats-js").
+			SetTimeout(20 * time.Second)
 		cv.So(ev.Error(), cv.ShouldBeNil)
+
 		sp := kaos.NewService().SetBasePoint("/event/v1").RegisterEventHub(ev, "default", eventSecretID)
 		sp.Log().SetLevelStdOut(logger.DebugLevel, true)
-
-		sp.RegisterModel(new(Model1), "model1").SetDeployer(knats.DeployerName, hd.DeployerName)
+		sp.RegisterModel(new(Model2), "model2").SetDeployer(knats.DeployerName, hd.DeployerName)
 
 		mux := http.NewServeMux()
 		e := hd.NewHttpDeployer(nil).Set("host", addrPub1).Deploy(sp, mux)
@@ -111,7 +114,7 @@ func TestQueResp(t *testing.T) {
 func TestQueModel(t *testing.T) {
 	cv.Convey("Preparing Model1", t, func() {
 		aclHub := makeQHub(qConnStr)
-		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSecret(eventSecretID).SetPrefix("nats-js").SetTimeout(1 * time.Minute)
 		cv.So(ev.Error(), cv.ShouldBeNil)
 		defer ev.Close()
 
