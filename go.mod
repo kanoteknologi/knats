@@ -4,11 +4,11 @@ go 1.23
 
 replace github.com/ariefdarmawan/flexpg v0.7.0 => github.com/ariefdarmawan/flexpg v0.7.1
 
-replace git.kanosolution.net/kano/kaos => ../kaos
+//replace git.kanosolution.net/kano/kaos => ../kaos
 
 require (
 	git.kanosolution.net/kano/dbflex v1.3.3
-	git.kanosolution.net/kano/kaos v0.3.9-0.20250102023848-4da1e5e043c5
+	git.kanosolution.net/kano/kaos v0.3.9-0.20250301165643-942e3c8dec07
 	github.com/ariefdarmawan/byter v0.0.2
 	github.com/ariefdarmawan/datahub v0.2.9
 	github.com/ariefdarmawan/flexmgo v0.4.1
