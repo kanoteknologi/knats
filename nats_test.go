@@ -80,13 +80,13 @@ func TestJetStream(t *testing.T) {
 				go jsSend(js, "js-test.send", "hello3", "reply3")
 
 				convey.Convey("consume", func() {
-					time.Sleep(100 * time.Millisecond)
+					//time.Sleep(100 * time.Millisecond)
 					_, err4 := jsSend(js, "js-test.send", "hello4", "reply4")
 					repl5, err5 := jsSend(js, "js-test.send", "hello5", "reply5")
 					convey.So(err4, convey.ShouldBeNil)
 					convey.So(err5, convey.ShouldBeNil)
 					convey.So(repl5, convey.ShouldEqual, "OK hello5")
-					chanExit <- true
+					//chanExit <- true
 				})
 			})
 		})
