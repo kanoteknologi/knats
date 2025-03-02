@@ -22,7 +22,7 @@ func TestJetStream(t *testing.T) {
 		log.SetLevelStdOut(logger.DebugLevel, true)
 		nc, err = nats.Connect("nats://localhost:4222")
 		convey.So(err, convey.ShouldBeNil)
-		defer nc.Drain()
+		//defer nc.Drain()
 
 		js, err = nc.JetStream()
 		if err != nil {
@@ -44,7 +44,7 @@ func TestJetStream(t *testing.T) {
 
 			sub, err := js.PullSubscribe("js-test.send", "js-test")
 			convey.So(err, convey.ShouldBeNil)
-			defer sub.Unsubscribe()
+			//defer sub.Unsubscribe()
 
 			convey.Convey("publish", func() {
 				chanExit := make(chan bool)

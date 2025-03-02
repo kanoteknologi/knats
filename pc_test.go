@@ -14,7 +14,7 @@ import (
 
 func TestPublisherConsumer(t *testing.T) {
 	convey.Convey("prepare JetStream", t, func() {
-		log.SetLevelStdOut(logger.DebugLevel, false)
+		log.SetLevelStdOut(logger.DebugLevel, true)
 		nc, err = nats.Connect("nats://localhost:4222")
 		convey.So(err, convey.ShouldBeNil)
 		defer nc.Drain()
@@ -25,12 +25,12 @@ func TestPublisherConsumer(t *testing.T) {
 
 		convey.Convey("prepare consumer dan subscribers", func() {
 			wg := new(sync.WaitGroup)
-			con1, err := knats.NewKConsumer("con1", nc, log, nil, "js-test", "js-test", "js-test.send")
+			con1, err := knats.NewKConsumer("con1", nc, log, nil, "js-test", "js-test-raw", "js-test.send-pc")
 			convey.So(err, convey.ShouldBeNil)
 			//defer con1.Close()
 			con1.Consume(handleMsg(wg))
 
-			con2, err := knats.NewKConsumer("con2", nc, log, nil, "js-test", "js-test", "js-test.send")
+			con2, err := knats.NewKConsumer("con2", nc, log, nil, "js-test", "js-test-raw", "js-test.send-pc")
 			convey.So(err, convey.ShouldBeNil)
 			//defer con2.Close()
 			con2.Consume(handleMsg(wg))
@@ -38,10 +38,10 @@ func TestPublisherConsumer(t *testing.T) {
 			convey.Convey("publish", func() {
 				wg.Add(3)
 				res3 := ""
-				go pub.Publish("js-test.send", "hello 1", nil, nil)
-				go pub.Publish("js-test.send", "hello 2", nil, nil)
+				go pub.Publish("js-test.send-pc", "hello 1", nil, nil)
+				go pub.Publish("js-test.send-pc", "hello 2", nil, nil)
 				go func(wg *sync.WaitGroup) {
-					err := pub.Publish("js-test.send", "hello 3", nil, &res3)
+					err := pub.Publish("js-test.send-pc", "hello 3", nil, &res3)
 					if err != nil {
 						errStr := err.Error()
 						log.Errorf("fail to publish: %s", err.Error())
@@ -66,7 +66,7 @@ func TestPublisherConsumer(t *testing.T) {
 func handleMsg(wg *sync.WaitGroup) func(msg *nats.Msg) (interface{}, error) {
 	return func(msg *nats.Msg) (interface{}, error) {
 		defer wg.Done()
-		log.Infof("WORKING ON msg %s reply %s", string(msg.Data), msg.Header.Get("reply"))
+		log.Infof("working on msg %s reply %s", string(msg.Data), msg.Header.Get("reply"))
 		return string(msg.Data) + " respond", nil
 	}
 }

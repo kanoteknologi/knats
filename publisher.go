@@ -111,6 +111,11 @@ func (k *KPublisher) Publish(subject string, data interface{}, headers codekit.M
 		}
 		replyMsg.Ack()
 
+		replyError := replyMsg.Header.Get("error")
+		if replyError != "" {
+			return fmt.Errorf("%s fail to process message. %s", k.name, replyError)
+		}
+
 		if err = k.btr.DecodeTo(replyMsg.Data, replyObj, nil); err != nil {
 			return fmt.Errorf("%s fail to decode reply message. %s", k.name, err.Error())
 		}

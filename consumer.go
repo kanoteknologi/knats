@@ -117,17 +117,21 @@ func (k *KConsumer) processMsg(msg *nats.Msg, fn func(*nats.Msg) (interface{}, e
 	replyID := msg.Header.Get("reply")
 	resp, err := fn(msg)
 	if err != nil {
+		k.Respond(replyID, nil, err)
 		msg.Ack()
 		return err
 	}
+
 	bs, err := k.btr.Encode(resp)
 	if err != nil {
+		k.Respond(replyID, nil, err)
 		msg.Ack()
 		return err
 	}
 
 	if replyID != "" {
-		err := k.nc.Publish(replyID, bs)
+		//err := k.nc.Publish(replyID, bs)
+		err = k.Respond(replyID, bs, nil)
 		if err != nil {
 			msg.Ack()
 			return fmt.Errorf("fail to publish reply: %s", err.Error())
@@ -136,4 +140,23 @@ func (k *KConsumer) processMsg(msg *nats.Msg, fn func(*nats.Msg) (interface{}, e
 	}
 	msg.Ack()
 	return nil
+}
+
+func (k *KConsumer) Respond(replyID string, bs []byte, err error) error {
+	msg := &nats.Msg{
+		Data:   bs,
+		Header: nats.Header{},
+	}
+
+	if err != nil {
+		msg.Header.Set("error", err.Error())
+	}
+	msg.Subject = replyID
+
+	errRespond := k.nc.PublishMsg(msg)
+	if errRespond != nil {
+		return fmt.Errorf("fail to respond: %s", errRespond.Error())
+	}
+
+	return err
 }

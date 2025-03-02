@@ -14,7 +14,6 @@ import (
 	"github.com/ariefdarmawan/datahub"
 	_ "github.com/ariefdarmawan/flexmgo"
 	"github.com/kanoteknologi/hd"
-	"github.com/kanoteknologi/khc"
 	"github.com/kanoteknologi/knats"
 	"github.com/sebarcode/codekit"
 	"github.com/sebarcode/dbmod"
@@ -104,38 +103,57 @@ func TestQueResp(t *testing.T) {
 			Deploy(sp, nil)
 		cv.So(e, cv.ShouldBeNil)
 
+		e = ev.Publish("/event/v1/model1/onSet", "Welcome Resp", nil, nil)
+		cv.So(e, cv.ShouldBeNil)
+
 		res := ""
 		err := ev.Publish("/event/v1/model2/Hello", "Arief Darmawan", &res, nil)
 		convey.So(err, convey.ShouldBeNil)
-		convey.So(res, convey.ShouldEqual, "OK Arief Darmawan")
+		convey.So(res, convey.ShouldEqual, "Welcome Resp Arief Darmawan")
 	})
 }
 
 func TestQueModel(t *testing.T) {
 	cv.Convey("Preparing Model1", t, func() {
 		aclHub := makeQHub(qConnStr)
-		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSecret(eventSecretID).SetPrefix("nats-js").SetTimeout(1 * time.Minute)
+		ev := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).
+			SetSecret(eventSecretID).
+			SetPrefix("nats-js").
+			SetTimeout(10 * time.Second)
 		cv.So(ev.Error(), cv.ShouldBeNil)
-		defer ev.Close()
+		//defer ev.Close()
 
-		hm := new(kaos.HubManager)
+		hm := kaos.NewHubManager(nil)
 		hm.Set("default", "", aclHub)
 
 		sp := kaos.NewService().SetBasePoint("/event/v1").
 			RegisterEventHub(ev, "default", eventSecretID).
 			SetHubManager(hm)
+		sp.Log().SetLevelStdOut(logger.DebugLevel, true)
 		sp.RegisterModel(new(QueUserModel), "user").SetMod(dbmod.New()).SetDeployer(knats.DeployerName, hd.DeployerName)
-		sp.RegisterModel(new(QueUserModel), "user-restrict").SetMod(dbmod.New()).SetDeployer(knats.DeployerName).
+		sp.RegisterModel(new(QueUserModel), "user-restrict").
+			SetMod(dbmod.New()).
+			SetDeployer(knats.DeployerName).
 			RegisterMW(func(ctx *kaos.Context, i interface{}) (bool, error) {
-				headerJWT := ctx.Data().Get("jwt_token", "").(string)
-				if headerJWT == "" {
-					return false, errors.New("invalid token")
+				headerJWT := ctx.Data().Get("jwt_token", "")
+				jwtid := ""
+				jwts, ok := headerJWT.([]string)
+				if ok {
+					jwtid = jwts[0]
+				} else {
+					jwtid, ok = headerJWT.(string)
+					if !ok {
+						return false, errors.New("jwt_token not found")
+					}
+				}
+				if jwtid == "" {
+					return false, errors.New("jwt_token not found")
 				}
 				return true, nil
 			}, "checkHeader")
 
 		mux := http.NewServeMux()
-		e := hd.NewHttpDeployer(nil).Deploy(sp, mux)
+		e := hd.NewHttpDeployer(nil).Set("host", addrPub1).Deploy(sp, mux)
 		cv.So(e, cv.ShouldBeNil)
 		go http.ListenAndServe(addrPub2, mux)
 
@@ -148,39 +166,42 @@ func TestQueModel(t *testing.T) {
 			user1.Name = "Nama User 01 with Random " + codekit.RandomString(10)
 			user1.Timestamp = time.Now()
 			res1 := new(QueUserModel)
-			ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).SetSignature(eventSecretID).SetTimeout(1 * time.Minute)
-			defer ev2.Close()
+			ev2 := knats.NewEventHub("nats://localhost:4222", byter.NewByter("")).
+				SetSecret(eventSecretID).
+				SetPrefix("nats-js").
+				SetTimeout(10 * time.Second)
+			//defer ev2.Close()
+			ev2.SetService(sp)
 			e = ev2.Publish("/event/v1/user/save", user1, res1, nil)
 			cv.So(e, cv.ShouldBeNil)
 			cv.So(user1.Name, cv.ShouldEqual, res1.Name)
 
 			cv.Convey("Get using HTTP", func() {
 				res2 := new(QueUserModel)
-				client, _ := khc.NewHttpClient(addrPub2, nil)
-				e = client.CallTo("/event/v1/user/get", res2, []interface{}{user1.ID})
+				InvokeAPI(sp, "/event/v1/user/get", []interface{}{user1.ID}, res2, "", "")
 				cv.So(e, cv.ShouldBeNil)
-				cv.So(user1.Name, cv.ShouldEqual, res2.Name)
+				cv.So(res2.Name, cv.ShouldEqual, user1.Name)
 
 				cv.Convey("Get using Event", func() {
 					res3 := new(QueUserModel)
 					e = ev.Publish("/event/v1/user/get", []interface{}{user1.ID}, res3, nil)
 					cv.So(e, cv.ShouldBeNil)
-					cv.So(res2, cv.ShouldResemble, res3)
-				})
+					cv.So(res2.Name, cv.ShouldResemble, res3.Name)
 
-				cv.Convey("Get using Event with headers - no headers", func() {
-					res3 := new(QueUserModel)
-					e = ev.Publish("/event/v1/user-restrict/get", []interface{}{user1.ID}, res3, nil)
-					cv.So(e, cv.ShouldNotBeNil)
-				})
+					cv.Convey("Get using Event with headers - no headers", func() {
+						res3 := new(QueUserModel)
+						e = ev.Publish("/event/v1/user-restrict/get", []interface{}{user1.ID}, res3, nil)
+						cv.So(e, cv.ShouldNotBeNil)
 
-				cv.Convey("Get using Event with headers - with headers", func() {
-					res3 := new(QueUserModel)
-					e = ev.Publish("/event/v1/user-restrict/get",
-						[]interface{}{user1.ID},
-						res3, &kaos.PublishOpts{Headers: codekit.M{"jwt_token": "random saja"}})
-					cv.So(e, cv.ShouldBeNil)
-					cv.So(res2, cv.ShouldResemble, res3)
+						cv.Convey("Get using Event with headers - with headers", func() {
+							res3 := new(QueUserModel)
+							e = ev.Publish("/event/v1/user-restrict/get",
+								[]interface{}{user1.ID},
+								res3, &kaos.PublishOpts{Headers: codekit.M{"jwt_token": "random saja"}})
+							cv.So(e, cv.ShouldBeNil)
+							cv.So(res2.Name, cv.ShouldResemble, res3.Name)
+						})
+					})
 				})
 			})
 		})
@@ -226,7 +247,7 @@ func (m *Model2) Hello(ctx *kaos.Context, parm string) (string, error) {
 
 type QueUserModel struct {
 	orm.DataModelBase `bson:"-" json:"-"`
-	ID                string    `bson:"id" json:"_id" key:"1"`
+	ID                string    `bson:"_id" json:"_id" key:"1"`
 	Name              string    `json:"name"`
 	Timestamp         time.Time `json:"ts"`
 }
@@ -253,6 +274,10 @@ func (um *QueUserModel) SetID(keys ...interface{}) {
 	if len(keys) > 0 {
 		um.ID = keys[0].(string)
 	}
+}
+
+func (um *QueUserModel) GetID(dbflex.IConnection) ([]string, []interface{}) {
+	return []string{"_id"}, []interface{}{um.ID}
 }
 
 func makeQHub(txt string) *datahub.Hub {
